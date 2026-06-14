@@ -1,19 +1,19 @@
 // app/auth/login/page.tsx
 // Login page — credentials-based authentication using react-hook-form + Zod.
-// All failure paths show the same generic message to prevent user enumeration (OWASP A07).
+// Uses a Next.js Server Action to safely invoke NextAuth v5's signIn().
 
 "use client";
 
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Lock, Mail, Package } from "lucide-react";
+import { Loader2, Lock, Mail, Package, Eye, EyeOff } from "lucide-react";
 import type { z } from "zod";
 
 import { loginSchema } from "@/lib/validations/auth";
+import { loginAction } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -43,28 +44,21 @@ export default function LoginPage() {
   async function onSubmit(data: LoginFormValues) {
     setIsSubmitting(true);
     try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      const result = await loginAction(data.email, data.password);
 
-      if (result?.error) {
-        // SECURITY: Never reveal whether the email exists, whether the account is inactive,
-        // or whether rate limiting was triggered. All failure paths show the same generic message.
+      if (!result.success) {
         toast.error("Invalid email or password", {
           description: "Please check your credentials and try again.",
         });
         return;
       }
 
-      // Successful login — redirect to dashboard
+      // Successful sign-in — navigate to dashboard and trigger hard refresh
+      // so the session provider context picks up the new user instantly.
       router.push("/dashboard");
       router.refresh();
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "An unexpected error occurred";
-      // Do not surface internal error details — use generic message for user
-      console.error("[login] Unexpected error:", message);
+      console.error("[login] Client error:", error);
       toast.error("Something went wrong", {
         description: "Please try again in a moment.",
       });
@@ -128,14 +122,26 @@ export default function LoginPage() {
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="••••••••"
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-invalid={!!errors.password}
                     aria-describedby={errors.password ? "password-error" : undefined}
                     {...register("password")}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.password && (
                   <p id="password-error" className="text-xs text-destructive" role="alert">
@@ -163,7 +169,6 @@ export default function LoginPage() {
                 )}
               </Button>
 
-              {/* No self-registration — internal system */}
               <p className="text-center text-xs text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <span className="font-medium text-foreground">

@@ -9,7 +9,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Lock, ShieldCheck } from "lucide-react";
+import { Loader2, Lock, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import type { z } from "zod";
 
 import { changePasswordSchema } from "@/lib/validations/auth";
@@ -30,6 +30,9 @@ type ChangePasswordFormValues = z.infer<typeof changePasswordSchema>;
 export default function ChangePasswordPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
 
   const {
     register,
@@ -111,14 +114,26 @@ export default function ChangePasswordPage() {
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="currentPassword"
-                    type="password"
+                    type={showCurrentPassword ? "text" : "password"}
                     autoComplete="current-password"
                     placeholder="Your current password"
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-invalid={!!errors.currentPassword}
                     aria-describedby={errors.currentPassword ? "current-pw-error" : undefined}
                     {...register("currentPassword")}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.currentPassword && (
                   <p id="current-pw-error" className="text-xs text-destructive" role="alert">
@@ -134,14 +149,26 @@ export default function ChangePasswordPage() {
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="newPassword"
-                    type="password"
+                    type={showNewPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="At least 8 characters"
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-invalid={!!errors.newPassword}
                     aria-describedby={errors.newPassword ? "new-pw-error" : undefined}
                     {...register("newPassword")}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.newPassword && (
                   <p id="new-pw-error" className="text-xs text-destructive" role="alert">
@@ -157,14 +184,26 @@ export default function ChangePasswordPage() {
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="confirmNewPassword"
-                    type="password"
+                    type={showConfirmNewPassword ? "text" : "password"}
                     autoComplete="new-password"
                     placeholder="Repeat your new password"
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-invalid={!!errors.confirmNewPassword}
                     aria-describedby={errors.confirmNewPassword ? "confirm-pw-error" : undefined}
                     {...register("confirmNewPassword")}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
+                    aria-label={showConfirmNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
                 </div>
                 {errors.confirmNewPassword && (
                   <p id="confirm-pw-error" className="text-xs text-destructive" role="alert">

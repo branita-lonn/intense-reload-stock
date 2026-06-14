@@ -1,6 +1,7 @@
 // components/providers/session-provider.tsx
-// Client-side wrapper for NextAuth SessionProvider — required because SessionProvider
-// uses React context and must be a Client Component, while the root layout is a Server Component.
+// Client-side wrapper for NextAuth v4 SessionProvider.
+// Required because SessionProvider uses React context and must be a Client Component,
+// while the root layout is a Server Component.
 
 "use client";
 

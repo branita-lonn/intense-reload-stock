@@ -1,7 +1,7 @@
 // app/api/auth/change-password/route.ts
 // API route to change a user's password.
 // Security: validates current password via bcrypt, hashes new password (12 rounds),
-// sets mustChangePassword: false, invalidates existing sessions.
+// sets mustChangePassword: false, invalidates existing database sessions.
 // All inputs are Zod-validated before any Prisma call (OWASP A03).
 
 import { NextResponse } from "next/server";
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // 2. Parse and validate request body with Zod
+  // 2. Parse and validate request body with Zod (OWASP A03)
   let body: unknown;
   try {
     body = await request.json();
@@ -27,7 +27,6 @@ export async function POST(request: Request) {
 
   const parsed = changePasswordSchema.safeParse(body);
   if (!parsed.success) {
-    // Return first validation error message (safe to surface — these are user-input mistakes)
     const firstError = parsed.error.issues[0]?.message ?? "Validation failed";
     return NextResponse.json({ error: firstError }, { status: 400 });
   }
@@ -47,14 +46,13 @@ export async function POST(request: Request) {
   // 4. Verify the current password before allowing the change
   const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
   if (!isCurrentPasswordValid) {
-    // Generic message — do not reveal the actual failure reason (OWASP A07)
     return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
   }
 
-  // 5. Hash the new password with bcrypt (12 rounds — OWASP A02)
+  // 5. Hash the new password (12 rounds — OWASP A02)
   const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
-  // 6. Update the user's password and clear the mustChangePassword flag
+  // 6. Update password and clear mustChangePassword flag
   await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -64,10 +62,8 @@ export async function POST(request: Request) {
     },
   });
 
-  // 7. Delete all existing sessions to force re-login with the new password
-  await prisma.session.deleteMany({
-    where: { userId: user.id },
-  });
+  // 7. Delete all existing NextAuth database sessions to force re-login
+  await prisma.session.deleteMany({ where: { userId: user.id } });
 
   return NextResponse.json(
     { message: "Password changed successfully. Please sign in again." },

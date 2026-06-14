@@ -10,6 +10,8 @@ import type { NextConfig } from "next";
 // must not be removed without a documented reason.
 // ─────────────────────────────────────────────────────────────
 
+const isDev = process.env.NODE_ENV === "development";
+
 const securityHeaders = [
   {
     // Prevents the page from being embedded in an <iframe>, <frame>, or <object>.
@@ -43,32 +45,21 @@ const securityHeaders = [
   {
     // Content Security Policy — restricts which resources the browser is allowed
     // to load for this page. This is the primary defence against XSS (OWASP A03).
-    //
-    // Directives explained:
-    //   default-src 'self'        — by default, only load resources from our own origin
-    //   script-src 'self'         — scripts from our origin only
-    //   style-src 'self' 'unsafe-inline' — our origin + inline styles (required by Tailwind CSS v4 / shadcn)
-    //   img-src 'self' data: res.cloudinary.com — allow images from our origin,
-    //                             inline base64 data URIs, and Cloudinary (product images, Stage 4+)
-    //   font-src 'self' data:     — fonts from our origin and base64 data URIs
-    //   connect-src 'self'        — XHR/fetch allowed only to our own origin
-    //   frame-ancestors 'none'    — no one may embed this app in an iframe (redundant with X-Frame-Options
-    //                             but CSP frame-ancestors takes precedence in modern browsers)
-    //   base-uri 'self'           — prevents <base> tag injection attacks
-    //   form-action 'self'        — form submissions only to our own origin
-    //
-    // ⚠️ 'unsafe-eval' is NOT included in the production policy. If Next.js requires
-    // it during local development (e.g. for hot-reload), set NODE_ENV=development and
-    // handle it with a conditional or a separate dev-only header override — never
-    // include 'unsafe-eval' in the production CSP.
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self'",
+      // Next.js requires 'unsafe-inline' for script execution (hydration) unless a complex nonce setup is used.
+      // Next.js HMR (Hot Module Replacement) requires 'unsafe-eval' during development.
+      isDev
+        ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+        : "script-src 'self' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: res.cloudinary.com",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      // Development server HMR uses web sockets.
+      isDev
+        ? "connect-src 'self' ws: wss:"
+        : "connect-src 'self'",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",

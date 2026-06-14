@@ -2,12 +2,12 @@
 // Dashboard home page — displays real stat counts and a welcome message.
 // Full analytics arrive in Stage 10; these are simple Prisma count queries.
 
-import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { GitBranch, Package, Layers, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserRole } from "@prisma/client";
+import type { UserRole } from "@prisma/client";
 
 const roleLabels: Record<UserRole, string> = {
   OWNER: "Owner",
@@ -16,29 +16,18 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 async function getDashboardStats() {
-  const [
-    totalBranches,
-    stockBearingCategories,
-    totalProducts,
-    lowStockItems,
-  ] = await Promise.all([
-    prisma.branch.count({ where: { isActive: true } }),
-    prisma.category.count({ where: { isStockBearing: true, isActive: true } }),
-    prisma.product.count({ where: { isActive: true } }),
-    prisma.inventory.count({
-      where: {
-        isReferenceSnapshot: false,
-        // Low stock: quantity is at or below the threshold
-        // Using a raw comparison via Prisma's lte filter against the threshold field
-        // The Prisma query builder doesn't support column-to-column comparison directly
-        // so we use a workaround with a raw filter condition
-        AND: {
-          quantity: { lte: 10 }, // approximation using default threshold of 10
+  const [totalBranches, stockBearingCategories, totalProducts, lowStockItems] =
+    await Promise.all([
+      prisma.branch.count({ where: { isActive: true } }),
+      prisma.category.count({ where: { isStockBearing: true, isActive: true } }),
+      prisma.product.count({ where: { isActive: true } }),
+      prisma.inventory.count({
+        where: {
+          isReferenceSnapshot: false,
+          quantity: { gt: 0, lte: 10 },
         },
-        quantity: { gt: 0 }, // exclude zeroed-out items for this summary count
-      },
-    }),
-  ]);
+      }),
+    ]);
 
   return { totalBranches, stockBearingCategories, totalProducts, lowStockItems };
 }
@@ -123,7 +112,7 @@ export default async function DashboardPage() {
         })}
       </div>
 
-      {/* Placeholder message for upcoming stages */}
+      {/* Placeholder for upcoming stages */}
       <div className="rounded-3xl border bg-card/50 p-8 text-center">
         <p className="text-sm text-muted-foreground">
           📦 Full inventory management, branch analytics, and sales tracking arrive in upcoming stages.
