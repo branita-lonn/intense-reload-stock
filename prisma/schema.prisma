@@ -1,0 +1,236 @@
+// prisma/schema.prisma
+// Database schema definition for Intense Reload Multi-Branch Stock System using PostgreSQL
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  OWNER
+  BRANCH_MANAGER
+  STAFF
+}
+
+enum StockMovementType {
+  STOCK_IN
+  SALE
+  ADJUSTMENT
+  TRANSFER_OUT
+  TRANSFER_IN
+  DRILL_DOWN_MIGRATION
+}
+
+model User {
+  id                 String                 @id @default(cuid())
+  name               String
+  email              String                 @unique
+  emailVerified      DateTime?
+  password           String                 // hashed
+  image              String?
+  role               UserRole               @default(STAFF)
+  mustChangePassword Boolean                @default(false)
+  isActive           Boolean                @default(true)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  accounts           Account[]
+  sessions           Session[]
+  branchAssignments  UserBranchAssignment[]
+  loggedSales        Sale[]                 // Relation placeholder for Stage 5
+  stockMovements     StockMovement[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Branch {
+  id            String                 @id @default(cuid())
+  name          String
+  town          String
+  contactNumber String?
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  inventoryRecords  Inventory[]
+  stockMovements    StockMovement[]
+  branchAssignments UserBranchAssignment[]
+}
+
+model UserBranchAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, branchId])
+}
+
+model StoreSettings {
+  id                           String   @id @default(cuid())
+  storeName                    String   @default("Intense Reload")
+  storeTagline                 String?
+  logoUrl                      String?
+  accentColor                  String   @default("#1D4ED8")
+  enablePOS                    Boolean  @default(false)
+  enableBarcodeScanning        Boolean  @default(false)
+  enableStockValueTracking     Boolean  @default(false)
+  requireSaleApproval          Boolean  @default(true)
+  enableDetailedSaleBreakdown  Boolean  @default(false)
+  whatsappNumber               String?
+  returnPolicy                 String?  @db.Text
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+}
+
+model Category {
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  description    String?         @db.Text
+  imageUrl       String?
+  parentId       String?
+  parent         Category?       @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Restrict)
+  children       Category[]      @relation("CategoryToCategory")
+  isStockBearing Boolean         @default(false)
+  sortOrder      Int             @default(0)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  products       Product[]
+  inventoryRecords Inventory[]
+  stockMovements   StockMovement[]
+}
+
+model Product {
+  id             String           @id @default(cuid())
+  name           String
+  slug           String           @unique
+  description    String?          @db.Text
+  brand          String?
+  tags           String[]
+  images         String[]
+  categoryId     String
+  category       Category         @relation(fields: [categoryId], references: [id])
+  isStockBearing Boolean          @default(false)
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  variants       ProductVariant[]
+  inventoryRecords Inventory[]
+  stockMovements   StockMovement[]
+}
+
+model ProductVariant {
+  id           String          @id @default(cuid())
+  productId    String
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku          String?         @unique
+  size         String?
+  colour       String?
+  brand        String?         // overrides product brand if set
+  costPrice    Decimal?        @db.Decimal(10, 2)
+  sellingPrice Decimal?        @db.Decimal(10, 2)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  inventoryRecords Inventory[]
+  stockMovements   StockMovement[]
+}
+
+// Polymorphic Inventory model.
+// Constraint: exactly one of categoryId, productId, or productVariantId must be non-null.
+// This is enforced at the database level by unique indexes preventing duplicates for the same node+branch,
+// and at the application layer via Zod validations.
+model Inventory {
+  id                  String          @id @default(cuid())
+  branchId            String
+  branch              Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  categoryId          String?
+  category            Category?       @relation(fields: [categoryId], references: [id])
+  productId           String?
+  product             Product?        @relation(fields: [productId], references: [id])
+  productVariantId    String?
+  productVariant      ProductVariant? @relation(fields: [productVariantId], references: [id])
+  quantity            Int             @default(0)
+  lowStockThreshold   Int             @default(5)
+  isReferenceSnapshot Boolean         @default(false)
+  snapshotLabel       String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([branchId, categoryId])
+  @@unique([branchId, productId])
+  @@unique([branchId, productVariantId])
+}
+
+// Append-only Stock Movement audit trail.
+// No UPDATE or DELETE operations will ever be implemented against this model.
+model StockMovement {
+  id               String            @id @default(cuid())
+  branchId         String
+  branch           Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  categoryId       String?
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  productId        String?
+  product          Product?          @relation(fields: [productId], references: [id])
+  productVariantId String?
+  productVariant   ProductVariant?   @relation(fields: [productVariantId], references: [id])
+  type             StockMovementType
+  quantityBefore   Int
+  quantityAfter    Int
+  quantityDelta    Int
+  note             String?
+  performedById    String
+  performedBy      User              @relation(fields: [performedById], references: [id])
+  createdAt        DateTime          @default(now())
+}
+
+// Placeholder for Stage 5 Sales tracking
+model Sale {
+  id          String   @id @default(cuid())
+  loggedById  String
+  loggedBy    User     @relation(fields: [loggedById], references: [id])
+  createdAt   DateTime @default(now())
+}
