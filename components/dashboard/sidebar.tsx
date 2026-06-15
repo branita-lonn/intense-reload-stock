@@ -1,31 +1,50 @@
 // components/dashboard/sidebar.tsx
-// Collapsible dashboard sidebar — desktop fixed sidebar, mobile hamburger sheet.
-// Role-based link filtering is a Stage 2 concern; all links are shown to all roles here.
+// Dashboard sidebar — role-filtered navigation links and branch switcher.
+// Branch selection uses the ?branch=<id> URL search param for shareability.
+// Role visibility rules:
+//   OWNER        → Dashboard, Inventory, Branches, Staff, Settings
+//   BRANCH_MANAGER → Dashboard, Inventory, Branches, Staff
+//   STAFF        → Dashboard, Inventory
 
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import {
   LayoutDashboard,
   Package,
   GitBranch,
+  Users,
   Settings,
   LogOut,
   Menu,
   X,
   Package2,
+  ChevronDown,
 } from "lucide-react";
-import { UserRole } from "@prisma/client";
+import type { UserRole } from "@prisma/client";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarUser {
   name: string;
@@ -33,35 +52,61 @@ interface SidebarUser {
   role: UserRole;
 }
 
+interface AccessibleBranch {
+  id: string;
+  name: string;
+  town: string;
+}
+
 interface DashboardSidebarProps {
   storeName: string;
   user: SidebarUser;
+  accessibleBranches: AccessibleBranch[];
 }
 
-const navLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  exact: boolean;
+  roles: UserRole[];
+}
+
+const ALL_NAV_LINKS: NavLink[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
     exact: true,
+    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
   },
   {
     href: "/dashboard/inventory",
     label: "Inventory",
     icon: Package,
     exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
   },
   {
     href: "/dashboard/branches",
     label: "Branches",
     icon: GitBranch,
     exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER"],
+  },
+  {
+    href: "/dashboard/staff",
+    label: "Staff",
+    icon: Users,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER"],
   },
   {
     href: "/dashboard/settings",
     label: "Settings",
     icon: Settings,
     exact: false,
+    roles: ["OWNER"],
   },
 ];
 
@@ -71,14 +116,99 @@ const roleLabels: Record<UserRole, string> = {
   STAFF: "Staff",
 };
 
+// ---------------------------------------------------------------------------
+// BranchSwitcher
+// ---------------------------------------------------------------------------
+function BranchSwitcher({
+  accessibleBranches,
+  userRole,
+}: {
+  accessibleBranches: AccessibleBranch[];
+  userRole: UserRole;
+}) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const currentBranchId = searchParams.get("branch");
+
+  const currentBranch =
+    accessibleBranches.find((b) => b.id === currentBranchId) ??
+    accessibleBranches[0];
+
+  function selectBranch(branchId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("branch", branchId);
+    router.push(`?${params.toString()}`);
+  }
+
+  // Single-branch STAFF or managers: show static label only
+  if (userRole === "STAFF" || accessibleBranches.length <= 1) {
+    return (
+      <div className="mx-3 my-2 rounded-xl bg-muted/40 px-3 py-2">
+        <p className="text-xs text-muted-foreground">Current branch</p>
+        <p className="mt-0.5 text-sm font-semibold text-foreground truncate">
+          {currentBranch?.name ?? "—"}
+        </p>
+      </div>
+    );
+  }
+
+  // Multi-branch OWNER or BRANCH_MANAGER: show dropdown
+  return (
+    <div className="mx-3 my-2">
+      <p className="px-1 mb-1 text-xs text-muted-foreground">Current branch</p>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            id="branch-switcher-trigger"
+            className="flex w-full items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors focus:outline-none"
+          >
+            <span className="truncate">{currentBranch?.name ?? "All branches"}</span>
+            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 ml-1 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56" align="start">
+          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+            Switch branch
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {accessibleBranches.map((branch) => (
+            <DropdownMenuItem
+              key={branch.id}
+              id={`branch-switcher-item-${branch.id}`}
+              onSelect={() => selectBranch(branch.id)}
+              className={cn(
+                "cursor-pointer",
+                currentBranch?.id === branch.id && "bg-primary/10 text-primary"
+              )}
+            >
+              <div className="flex flex-col">
+                <span>{branch.name}</span>
+                <span className="text-xs text-muted-foreground">{branch.town}</span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NavContent — shared between desktop and mobile
+// ---------------------------------------------------------------------------
 function NavContent({
   storeName,
   user,
+  accessibleBranches,
   onNavClick,
 }: DashboardSidebarProps & { onNavClick?: () => void }) {
   const pathname = usePathname();
 
-  async function handleSignOut() {
+  const visibleLinks = ALL_NAV_LINKS.filter((link) =>
+    link.roles.includes(user.role)
+  );
+
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut({ callbackUrl: "/auth/login" });
     } catch (error: unknown) {
@@ -86,7 +216,7 @@ function NavContent({
       console.error("[sidebar] Sign out error:", message);
       toast.error("Could not sign out. Please try again.");
     }
-  }
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -103,14 +233,21 @@ function NavContent({
 
       <Separator />
 
-      {/* Navigation Links */}
+      {/* Branch Switcher */}
+      <BranchSwitcher
+        accessibleBranches={accessibleBranches}
+        userRole={user.role}
+      />
+
+      <Separator />
+
+      {/* Role-filtered Navigation Links */}
       <nav aria-label="Dashboard navigation" className="flex-1 space-y-1 px-3 py-4">
-        {navLinks.map((link) => {
+        {visibleLinks.map((link) => {
           const isActive = link.exact
             ? pathname === link.href
             : pathname.startsWith(link.href);
           const Icon = link.icon;
-
           return (
             <Link
               key={link.href}
@@ -157,14 +294,25 @@ function NavContent({
   );
 }
 
-export function DashboardSidebar({ storeName, user }: DashboardSidebarProps) {
+// ---------------------------------------------------------------------------
+// DashboardSidebar — exported shell (desktop + mobile)
+// ---------------------------------------------------------------------------
+export function DashboardSidebar({
+  storeName,
+  user,
+  accessibleBranches,
+}: DashboardSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
       {/* Desktop sidebar — fixed, visible on lg+ */}
       <aside className="hidden lg:flex lg:w-64 lg:flex-shrink-0 lg:flex-col border-r bg-card">
-        <NavContent storeName={storeName} user={user} />
+        <NavContent
+          storeName={storeName}
+          user={user}
+          accessibleBranches={accessibleBranches}
+        />
       </aside>
 
       {/* Mobile hamburger — visible on < lg */}
@@ -192,6 +340,7 @@ export function DashboardSidebar({ storeName, user }: DashboardSidebarProps) {
             <NavContent
               storeName={storeName}
               user={user}
+              accessibleBranches={accessibleBranches}
               onNavClick={() => setMobileOpen(false)}
             />
           </SheetContent>
