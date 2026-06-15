@@ -25,6 +25,7 @@ import {
   Package2,
   ChevronDown,
   FolderTree,
+  Layers,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -87,6 +88,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     icon: Package,
     exact: false,
     roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+  },
+  {
+    href: "/dashboard/products",
+    label: "Products",
+    icon: Layers,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER"],
   },
   {
     href: "/dashboard/branches",
