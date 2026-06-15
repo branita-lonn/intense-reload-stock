@@ -7,6 +7,7 @@ import { NotFoundError } from "@/lib/errors";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BranchForm } from "@/components/dashboard/branch-form";
+import { AddBranchStaffForm } from "@/components/dashboard/add-branch-staff-form";
 import { BranchStaffList } from "@/components/dashboard/branch-staff-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -168,15 +169,10 @@ export default async function BranchDetailPage({
               </p>
             </div>
             {isOwnerOrManager && (
-              <Button
-                id="add-staff-to-branch-disabled"
-                disabled
-                variant="outline"
-                className="rounded-xl border-dashed"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Staff (Commit 4)
-              </Button>
+              <AddBranchStaffForm
+                branchId={branch.id}
+                assignedUserIds={branch.userAssignments.map((a) => a.userId)}
+              />
             )}
           </div>
 

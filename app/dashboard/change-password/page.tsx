@@ -51,6 +51,7 @@ export default function ChangePasswordPage() {
         body: JSON.stringify({
           currentPassword: data.currentPassword,
           newPassword: data.newPassword,
+          confirmNewPassword: data.confirmNewPassword,
         }),
       });
 
