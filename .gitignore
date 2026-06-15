@@ -42,3 +42,23 @@ next-env.d.ts
 
 # temp files
 /files/
+
+.next/
+node_modules/
+dist/
+*.log
+.env
+
+.next/
+node_modules/
+dist/
+*.log
+.env
+auth.ts
+
+.next/
+public/
+node_modules/
+dist/
+*.log
+.env

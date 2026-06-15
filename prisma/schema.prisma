@@ -25,6 +25,18 @@ enum StockMovementType {
   DRILL_DOWN_MIGRATION
 }
 
+// Enum for UserActivityLog audit trail actions.
+// APPEND-ONLY — see UserActivityLog model comment.
+enum UserActivityAction {
+  ACCOUNT_CREATED
+  ROLE_CHANGED
+  BRANCH_ASSIGNED
+  BRANCH_UNASSIGNED
+  ACCOUNT_DEACTIVATED
+  ACCOUNT_REACTIVATED
+  PASSWORD_CHANGED
+}
+
 model User {
   id                 String                 @id @default(cuid())
   name               String
@@ -37,11 +49,13 @@ model User {
   isActive           Boolean                @default(true)
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
-  accounts           Account[]
-  sessions           Session[]
-  branchAssignments  UserBranchAssignment[]
-  loggedSales        Sale[]                 // Relation placeholder for Stage 5
-  stockMovements     StockMovement[]
+  accounts              Account[]
+  sessions              Session[]
+  branchAssignments     UserBranchAssignment[]
+  loggedSales           Sale[]                 // Relation placeholder for Stage 5
+  stockMovements        StockMovement[]
+  activityLogsAsActor   UserActivityLog[]      @relation("ActivityLogActor")
+  activityLogsAsTarget  UserActivityLog[]      @relation("ActivityLogTarget")
 }
 
 model Account {
@@ -83,16 +97,17 @@ model VerificationToken {
 }
 
 model Branch {
-  id            String                 @id @default(cuid())
-  name          String
-  town          String
-  contactNumber String?
-  isActive      Boolean                @default(true)
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
+  id                String                 @id @default(cuid())
+  name              String
+  town              String
+  address           String?                // Street-level detail beyond town
+  contactNumber     String?
+  isActive          Boolean                @default(true)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
   inventoryRecords  Inventory[]
   stockMovements    StockMovement[]
-  branchAssignments UserBranchAssignment[]
+  userAssignments   UserBranchAssignment[]
 }
 
 model UserBranchAssignment {
@@ -105,6 +120,20 @@ model UserBranchAssignment {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, branchId])
+}
+
+// APPEND-ONLY. No PUT/PATCH/DELETE route will ever be created for this model.
+// This is a deliberate security control (OWASP A09: Security Logging and Monitoring).
+// Do not add update or delete endpoints for UserActivityLog in any future stage.
+model UserActivityLog {
+  id           String             @id @default(cuid())
+  actorId      String
+  actor        User               @relation("ActivityLogActor", fields: [actorId], references: [id])
+  targetUserId String?
+  targetUser   User?              @relation("ActivityLogTarget", fields: [targetUserId], references: [id])
+  action       UserActivityAction
+  details      Json?              // e.g. { "previousRole": "STAFF", "newRole": "BRANCH_MANAGER" }
+  createdAt    DateTime           @default(now())
 }
 
 model StoreSettings {
