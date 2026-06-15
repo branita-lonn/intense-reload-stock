@@ -10,6 +10,10 @@ import { loginSchema } from "@/lib/validations/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // PrismaAdapter is cast via `unknown` to work around a structural type mismatch
+  // between @auth/prisma-adapter's bundled @auth/core and next-auth v5 beta's vendored copy.
+  // This is a known beta-era version-skew issue — not a correctness concern.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   adapter: PrismaAdapter(prisma) as any,
   session: { strategy: "jwt" },
   pages: {
@@ -63,7 +67,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
-        token.role = user.role as any;
+        token.role = user.role;
         token.mustChangePassword = user.mustChangePassword as boolean;
       }
       return token;
@@ -71,7 +75,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as any;
+        session.user.role = token.role;
         session.user.mustChangePassword = token.mustChangePassword as boolean;
       }
       return session;
