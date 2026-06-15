@@ -24,6 +24,7 @@ import {
   X,
   Package2,
   ChevronDown,
+  FolderTree,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -91,6 +92,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     href: "/dashboard/branches",
     label: "Branches",
     icon: GitBranch,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER"],
+  },
+  {
+    href: "/dashboard/categories",
+    label: "Categories",
+    icon: FolderTree,
     exact: false,
     roles: ["OWNER", "BRANCH_MANAGER"],
   },
