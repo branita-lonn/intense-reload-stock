@@ -556,7 +556,7 @@ export function ApprovalsClient({
 
                       {/* Total Amount */}
                       <td className="p-4 text-right font-bold text-foreground text-sm">
-                        KES {sale.totalAmount.toLocaleString()}
+                        KES {Number(sale.totalAmount).toLocaleString()}
                       </td>
 
                       {/* Action buttons */}
@@ -638,7 +638,7 @@ export function ApprovalsClient({
                   </div>
 
                   <p className="text-xs font-bold text-foreground">
-                    KES {sale.totalAmount.toLocaleString()}
+                    KES {Number(sale.totalAmount).toLocaleString()}
                   </p>
                 </CardHeader>
 
@@ -794,7 +794,7 @@ export function ApprovalsClient({
                     {item.displayName ?? "Item"}
                   </p>
                   <p className="text-xxs text-muted-foreground">
-                    Original Qty: {item.quantity} | Price: KES {item.unitPrice.toLocaleString()}
+                    Original Qty: {item.quantity} | Price: KES {Number(item.unitPrice).toLocaleString()}
                   </p>
                 </div>
                 <div className="w-24">
