@@ -152,9 +152,11 @@ export function InventoryClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, categoryId, branchId, lowStockOnly]);
 
-  // Handler for the upcoming Stock-In flow
+  // Redirect to stock-in page prefilled with this item's context
   const handleStockIn = (row: InventoryRow) => {
-    toast.info(`Stock-in action clicked for "${row.displayName}". This workflow will be implemented in Commit 6.`);
+    router.push(
+      `/dashboard/stock-in?branchId=${row.branchId}&nodeType=${row.nodeType}&nodeId=${row.nodeId}`
+    );
   };
 
   const showBranchColumn = branchId === "all";

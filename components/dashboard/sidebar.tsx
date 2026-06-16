@@ -28,6 +28,7 @@ import {
   Layers,
   ShoppingCart,
   FileClock,
+  Boxes,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -95,6 +96,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     href: "/dashboard/sales",
     label: "Sales Logs",
     icon: FileClock,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+  },
+  {
+    href: "/dashboard/stock-in",
+    label: "Stock-In",
+    icon: Boxes,
     exact: false,
     roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
   },
