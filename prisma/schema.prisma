@@ -18,11 +18,23 @@ enum UserRole {
 
 enum StockMovementType {
   STOCK_IN
+  // SALE-type StockMovement rows are linked to their parent Sale via StockMovement.saleId (optional FK added in Stage 5).
+  // No direct FK existed before Stage 5; the link was previously recoverable by matching branchId + node + createdAt proximity.
   SALE
   ADJUSTMENT
   TRANSFER_OUT
   TRANSFER_IN
   DRILL_DOWN_MIGRATION
+}
+
+// Sale status lifecycle: PENDING → APPROVED or REJECTED.
+// If StoreSettings.requireSaleApproval is false at creation time, the sale is
+// created directly with status APPROVED (see app/api/dashboard/sales/route.ts).
+// Stage 6 handles the approval/rejection workflow.
+enum SaleStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // Enum for UserActivityLog audit trail actions.
@@ -52,7 +64,9 @@ model User {
   accounts              Account[]
   sessions              Session[]
   branchAssignments     UserBranchAssignment[]
-  loggedSales           Sale[]                 // Relation placeholder for Stage 5
+  // Stage 5: named relations required because User has two FK references on Sale.
+  loggedSales           Sale[]                 @relation("SaleLoggedBy")
+  reviewedSales         Sale[]                 @relation("SaleReviewedBy")
   stockMovements        StockMovement[]
   activityLogsAsActor   UserActivityLog[]      @relation("ActivityLogActor")
   activityLogsAsTarget  UserActivityLog[]      @relation("ActivityLogTarget")
@@ -108,6 +122,7 @@ model Branch {
   inventoryRecords  Inventory[]
   stockMovements    StockMovement[]
   userAssignments   UserBranchAssignment[]
+  sales             Sale[]
 }
 
 model UserBranchAssignment {
@@ -170,6 +185,7 @@ model Category {
   products       Product[]
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
+  saleItems        SaleItem[]
 }
 
 model Product {
@@ -189,6 +205,7 @@ model Product {
   variants       ProductVariant[]
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
+  saleItems        SaleItem[]
 }
 
 model ProductVariant {
@@ -206,6 +223,7 @@ model ProductVariant {
   updatedAt    DateTime        @updatedAt
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
+  saleItems        SaleItem[]
 }
 
 // Polymorphic Inventory model.
@@ -234,8 +252,12 @@ model Inventory {
   @@unique([branchId, productVariantId])
 }
 
-// Append-only Stock Movement audit trail.
+// APPEND-ONLY Stock Movement audit trail.
 // No UPDATE or DELETE operations will ever be implemented against this model.
+// (OWASP A09: Security Logging and Monitoring)
+// Stage 5: saleId added as optional FK (onDelete: SetNull) so SALE-type movements
+// are directly traceable to their parent Sale. Sale rows should never be deleted,
+// but SetNull is specified defensively — StockMovement survival is non-negotiable.
 model StockMovement {
   id               String            @id @default(cuid())
   branchId         String
@@ -251,15 +273,60 @@ model StockMovement {
   quantityAfter    Int
   quantityDelta    Int
   note             String?
+  // Optional link to a Sale. Set for SALE-type movements created during POST /api/dashboard/sales.
+  // onDelete: SetNull — StockMovement rows must survive even if Sale record is somehow removed.
+  saleId           String?
+  sale             Sale?             @relation(fields: [saleId], references: [id], onDelete: SetNull)
   performedById    String
   performedBy      User              @relation(fields: [performedById], references: [id])
   createdAt        DateTime          @default(now())
 }
 
-// Placeholder for Stage 5 Sales tracking
+// Sale — records a stock-out transaction logged at the shop counter.
+// APPEND-ONLY in spirit: no DELETE route will ever exist for Sale.
+// Status lifecycle: PENDING → APPROVED | REJECTED (Stage 6 approval workflow).
+// If StoreSettings.requireSaleApproval is false, sale is created as APPROVED immediately.
+// Inventory.quantity is decremented at creation time regardless of status — the audit
+// trail reflects the immediate state change; Stage 6 ADJUSTMENT StockMovements handle reversals.
 model Sale {
-  id          String   @id @default(cuid())
-  loggedById  String
-  loggedBy    User     @relation(fields: [loggedById], references: [id])
-  createdAt   DateTime @default(now())
+  id               String          @id @default(cuid())
+  branchId         String
+  branch           Branch          @relation(fields: [branchId], references: [id])
+  status           SaleStatus      @default(PENDING)
+  loggedById       String
+  // Named relation required: User has two FK references to Sale (loggedBy + reviewedBy).
+  loggedBy         User            @relation("SaleLoggedBy", fields: [loggedById], references: [id])
+  // Set in Stage 6 when an OWNER or BRANCH_MANAGER approves or rejects the sale.
+  reviewedById     String?
+  reviewedBy       User?           @relation("SaleReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt       DateTime?
+  // Max 255 chars — set by the reviewer in Stage 6 when rejecting a sale.
+  rejectionReason  String?         @db.VarChar(255)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  items            SaleItem[]
+  stockMovements   StockMovement[]
+}
+
+// SaleItem — one line item within a Sale.
+// Polymorphic: exactly one of categoryId, productId, productVariantId must be non-null.
+// This invariant is enforced at the application layer by assertExactlyOneStockParent
+// (lib/validations/inventory.ts) — now shared by three models:
+//   Inventory, StockMovement (indirectly via Sale context), and SaleItem.
+// No database-level CHECK constraint is available via Prisma; unique indexes on
+// Inventory prevent node+branch duplicates. SaleItem has no such uniqueness need.
+model SaleItem {
+  id               String          @id @default(cuid())
+  saleId           String
+  sale             Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  // Polymorphic node reference — exactly one must be set (enforced at app layer).
+  categoryId       String?
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  // Positive integer — max 1000 enforced in lib/validations/sale.ts, not here.
+  quantity         Int
+  createdAt        DateTime        @default(now())
 }
