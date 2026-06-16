@@ -116,6 +116,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
   },
   {
+    href: "/dashboard/stock-count",
+    label: "Stock Count",
+    icon: ClipboardCheck,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+  },
+  {
     href: "/dashboard/inventory",
     label: "Inventory",
     icon: Package,

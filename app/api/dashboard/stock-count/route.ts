@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { handleApiError, ValidationError } from "@/lib/errors";
 import { startStockCountSchema } from "@/lib/validations/stock-count";
 import { getInventoryRows, resolveNodeDisplayName } from "@/lib/inventory-queries";
+import type { StockCountStatus } from "@prisma/client";
 
 export async function GET(request: Request): Promise<Response> {
   try {
@@ -25,7 +26,7 @@ export async function GET(request: Request): Promise<Response> {
     const counts = await prisma.stockCount.findMany({
       where: {
         branchId,
-        ...(status ? { status: status as any } : {}),
+        ...(status ? { status: status as StockCountStatus } : {}),
       },
       include: {
         startedBy: {
