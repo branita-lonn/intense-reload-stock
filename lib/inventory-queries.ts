@@ -58,9 +58,10 @@ function buildPath(categoryId: string, allCategories: CategoryWithRelations[]): 
 export async function getInventoryRows(params: {
   branchIds: string[];
   categoryId?: string;
+  categoryIds?: string[];
   search?: string;
 }): Promise<InventoryRow[]> {
-  const { branchIds, categoryId, search } = params;
+  const { branchIds, categoryId, categoryIds, search } = params;
 
   // 1. Fetch active inventory records for the specified branch(es)
   const inventoryRecords = await prisma.inventory.findMany({
@@ -175,6 +176,12 @@ export async function getInventoryRows(params: {
   if (categoryId) {
     const descendantIds = [categoryId, ...getDescendantIds(categoryId, allCategories)];
     rows = rows.filter((r) => r.categoryId && descendantIds.includes(r.categoryId));
+  } else if (categoryIds && categoryIds.length > 0) {
+    const allDescendantIds: string[] = [];
+    for (const catId of categoryIds) {
+      allDescendantIds.push(catId, ...getDescendantIds(catId, allCategories));
+    }
+    rows = rows.filter((r) => r.categoryId && allDescendantIds.includes(r.categoryId));
   }
 
   // 5. Filter by Search Query if specified
