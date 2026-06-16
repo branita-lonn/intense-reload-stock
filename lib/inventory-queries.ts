@@ -189,3 +189,47 @@ export async function getInventoryRows(params: {
 
   return rows;
 }
+
+export interface InventoryNodeRef {
+  categoryId?: string | null;
+  productId?: string | null;
+  productVariantId?: string | null;
+}
+
+/**
+ * Resolves a human-readable display name for any given stock-bearing node reference.
+ * Used for displaying items in sale records and API logs.
+ */
+export async function resolveNodeDisplayName(node: InventoryNodeRef): Promise<string> {
+  if (node.categoryId) {
+    const category = await prisma.category.findUnique({
+      where: { id: node.categoryId },
+      select: { name: true },
+    });
+    return category?.name ?? "Unknown Category";
+  }
+
+  if (node.productId) {
+    const product = await prisma.product.findUnique({
+      where: { id: node.productId },
+      select: { name: true },
+    });
+    return product?.name ?? "Unknown Product";
+  }
+
+  if (node.productVariantId) {
+    const variant = await prisma.productVariant.findUnique({
+      where: { id: node.productVariantId },
+      include: {
+        product: {
+          select: { name: true },
+        },
+      },
+    });
+    if (!variant) return "Unknown Variant";
+    const variantParts = [variant.colour, variant.size].filter(Boolean).join(" ");
+    return `${variant.product.name}${variantParts ? ` — ${variantParts}` : ""}`.trim();
+  }
+
+  return "Unknown Item";
+}

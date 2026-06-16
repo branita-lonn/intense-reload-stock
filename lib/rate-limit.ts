@@ -67,3 +67,51 @@ export async function checkRateLimit(
   devCache.set(identifier, cached);
   return { success: true, remaining: LIMIT - cached.count };
 }
+
+// Sales-specific rate limiter (30 requests per 5 minutes)
+let salesRatelimit: Ratelimit | null = null;
+if (hasUpstash) {
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL!,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+  });
+  salesRatelimit = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(30, "300 s"),
+    analytics: true,
+  });
+}
+
+const salesDevCache = new Map<string, { count: number; resetAt: number }>();
+const SALES_LIMIT = 30;
+const SALES_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+
+export async function checkSalesRateLimit(
+  identifier: string
+): Promise<{ success: boolean; remaining: number }> {
+  if (salesRatelimit) {
+    const result = await salesRatelimit.limit(`sales:${identifier}`);
+    return {
+      success: result.success,
+      remaining: result.remaining,
+    };
+  }
+
+  const now = Date.now();
+  const cached = salesDevCache.get(identifier);
+
+  if (!cached || now >= cached.resetAt) {
+    const resetAt = now + SALES_WINDOW_MS;
+    salesDevCache.set(identifier, { count: 1, resetAt });
+    return { success: true, remaining: SALES_LIMIT - 1 };
+  }
+
+  if (cached.count >= SALES_LIMIT) {
+    return { success: false, remaining: 0 };
+  }
+
+  cached.count += 1;
+  salesDevCache.set(identifier, cached);
+  return { success: true, remaining: SALES_LIMIT - cached.count };
+}
+

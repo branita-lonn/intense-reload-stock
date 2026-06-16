@@ -53,6 +53,20 @@ export class NotFoundError extends Error {
 }
 
 // ---------------------------------------------------------------------------
+// RateLimitError — HTTP 429
+// Thrown when a user exceeds an API rate limit.
+// ---------------------------------------------------------------------------
+export class RateLimitError extends Error {
+  readonly statusCode = 429;
+
+  constructor(message = "Too many requests. Please try again later.") {
+    super(message);
+    this.name = "RateLimitError";
+    Object.setPrototypeOf(this, RateLimitError.prototype);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // handleApiError
 // ---------------------------------------------------------------------------
 // The standard catch-block handler for every API route in this project.
@@ -64,7 +78,7 @@ export class NotFoundError extends Error {
 //   }
 //
 // Contract:
-// - Known errors (AuthorizationError, ValidationError, NotFoundError) are
+// - Known errors (AuthorizationError, ValidationError, NotFoundError, RateLimitError) are
 //   returned with their statusCode and message — safe to expose to clients.
 // - All other errors are logged server-side and a generic 500 body is
 //   returned — NEVER leak the raw message or stack trace to the client
@@ -97,6 +111,10 @@ export function handleApiError(error: unknown): {
   }
 
   if (error instanceof NotFoundError) {
+    return { body: { error: error.message }, status: error.statusCode };
+  }
+
+  if (error instanceof RateLimitError) {
     return { body: { error: error.message }, status: error.statusCode };
   }
 
