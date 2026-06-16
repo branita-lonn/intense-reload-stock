@@ -16,6 +16,17 @@ enum UserRole {
   STAFF
 }
 
+enum StockCountStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum StockCountScope {
+  FULL_BRANCH
+  DRILL_DOWN_MIGRATION
+  VARIANT_CONVERSION_MIGRATION
+}
+
 enum StockMovementType {
   STOCK_IN
   // SALE-type StockMovement rows are linked to their parent Sale via StockMovement.saleId (optional FK added in Stage 5).
@@ -84,6 +95,8 @@ model User {
   activityLogsAsTarget  UserActivityLog[]      @relation("ActivityLogTarget")
   // Stage 6: in-app notifications for OWNER/BRANCH_MANAGER review events.
   notifications         Notification[]
+  startedCounts         StockCount[]           @relation("StockCountStartedBy")
+  completedCounts       StockCount[]           @relation("StockCountCompletedBy")
 }
 
 model Account {
@@ -138,6 +151,7 @@ model Branch {
   stockMovements               StockMovement[]
   userAssignments              UserBranchAssignment[]
   sales                        Sale[]
+  stockCounts                  StockCount[]
 }
 
 model UserBranchAssignment {
@@ -201,6 +215,7 @@ model Category {
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
+  stockCountItems  StockCountItem[]
 }
 
 model Product {
@@ -221,6 +236,8 @@ model Product {
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
+  stockCountItems  StockCountItem[]
+  stockCounts      StockCount[]
 }
 
 model ProductVariant {
@@ -239,6 +256,7 @@ model ProductVariant {
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
+  stockCountItems  StockCountItem[]
 }
 
 // Polymorphic Inventory model.
@@ -292,6 +310,8 @@ model StockMovement {
   // onDelete: SetNull — StockMovement rows must survive even if Sale record is somehow removed.
   saleId           String?
   sale             Sale?             @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  stockCountId     String?
+  stockCount       StockCount?       @relation(fields: [stockCountId], references: [id], onDelete: SetNull)
   performedById    String
   performedBy      User              @relation(fields: [performedById], references: [id])
   createdAt        DateTime          @default(now())
@@ -372,4 +392,44 @@ model Notification {
   createdAt     DateTime         @default(now())
 
   @@index([userId, isRead, createdAt])
+}
+
+model StockCount {
+  id               String            @id @default(cuid())
+  branchId         String
+  branch           Branch            @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  status           StockCountStatus  @default(IN_PROGRESS)
+  scope            StockCountScope
+  scopeCategoryIds String[]          // Postgres string array
+  scopeProductId   String?
+  scopeProduct     Product?          @relation(fields: [scopeProductId], references: [id], onDelete: SetNull)
+  startedById      String
+  startedBy        User              @relation("StockCountStartedBy", fields: [startedById], references: [id])
+  completedById    String?
+  completedBy      User?             @relation("StockCountCompletedBy", fields: [completedById], references: [id])
+  startedAt        DateTime          @default(now())
+  completedAt      DateTime?
+  items            StockCountItem[]
+  stockMovements   StockMovement[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model StockCountItem {
+  id               String          @id @default(cuid())
+  stockCountId     String
+  stockCount       StockCount      @relation(fields: [stockCountId], references: [id], onDelete: Cascade)
+  categoryId       String?
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  expectedQty      Int
+  countedQty       Int?
+  // Variance is stored denormalized to avoid repetitive computations in lists, sorting,
+  // and reporting, and is updated whenever countedQty changes.
+  variance         Int?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }
