@@ -44,6 +44,16 @@ export async function GET(request: Request): Promise<Response> {
         mode: "insensitive",
       };
     }
+    // When a specific branch is selected, only return products that actually have
+    // inventory records in that branch (either product-level or via a variant).
+    // Without this filter the list always shows all products regardless of branch
+    // because the branch filter was only scoping the *included* inventory records.
+    if (branchFilter) {
+      whereClause.OR = [
+        { inventoryRecords: { some: { branchId: { in: branchFilter.in } } } },
+        { variants: { some: { inventoryRecords: { some: { branchId: { in: branchFilter.in } } } } } },
+      ];
+    }
 
     const dbProducts = await prisma.product.findMany({
       where: whereClause,

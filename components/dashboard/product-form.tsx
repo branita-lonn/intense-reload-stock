@@ -227,6 +227,10 @@ export function ProductForm({
   // Form submission handler
   // ---------------------------------------------------------------------------
   async function onSubmit(data: FormSchemaType) {
+    // Guard: only process a real submit when the user is explicitly on the final step.
+    // This prevents any stray synthetic events during step transitions from firing the API call.
+    if (!isLastStep) return;
+
     setIsSubmitting(true);
     try {
       if (isEditMode) {
@@ -358,7 +362,7 @@ export function ProductForm({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 pt-4">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-6 pt-4" noValidate>
         {/* ========================================================================= */}
         {/* STEP 1: CATALOGUE DETAILS                                                 */}
         {/* ========================================================================= */}
@@ -788,10 +792,16 @@ export function ProductForm({
               Next <ArrowRight className="w-4 h-4" />
             </Button>
           ) : (
+            // type="button" is intentional — prevents the browser from treating
+            // this as a native form submit button. Submission is triggered
+            // explicitly via handleSubmit(onSubmit)() to avoid a race condition
+            // where React swapping type=button→type=submit on the same DOM node
+            // during a step transition would auto-fire a form submission.
             <Button
-              type="submit"
+              type="button"
               className="rounded-xl flex items-center gap-1.5"
               disabled={isSubmitting}
+              onClick={() => void handleSubmit(onSubmit)()}
             >
               {isSubmitting ? (
                 <>

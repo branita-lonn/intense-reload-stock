@@ -55,6 +55,18 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     notFound();
   }
 
+  // Serialize Prisma Decimal fields to plain numbers before crossing the
+  // Server → Client Component boundary. Next.js cannot serialize Decimal objects,
+  // which causes a runtime crash even though TypeScript accepts the cast.
+  const serializedProduct = {
+    ...product,
+    variants: product.variants.map((v) => ({
+      ...v,
+      costPrice: v.costPrice !== null ? Number(v.costPrice) : null,
+      sellingPrice: v.sellingPrice !== null ? Number(v.sellingPrice) : null,
+    })),
+  };
+
   // Fetch categories for category selector
   const categories = (await prisma.category.findMany({
     orderBy: { sortOrder: "asc" },
@@ -80,7 +92,7 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
 
       <div className="rounded-3xl border bg-card p-6 shadow-sm">
         <ProductForm
-          initialProduct={product as unknown as ProductWithRelations}
+          initialProduct={serializedProduct as unknown as ProductWithRelations}
           categories={categories}
           enableStockValueTracking={enableStockValueTracking}
         />
