@@ -27,6 +27,7 @@ import {
   FolderTree,
   Layers,
   ShoppingCart,
+  FileClock,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -87,6 +88,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     href: "/dashboard/log-sale",
     label: "Log Sale",
     icon: ShoppingCart,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+  },
+  {
+    href: "/dashboard/sales",
+    label: "Sales Logs",
+    icon: FileClock,
     exact: false,
     roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
   },

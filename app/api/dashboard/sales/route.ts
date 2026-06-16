@@ -79,6 +79,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       where: whereClause,
       include: {
         items: true,
+        stockMovements: true,
         loggedBy: {
           select: {
             id: true,
