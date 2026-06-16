@@ -36,6 +36,11 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session) redirect("/auth/login");
 
+  // STAFF is redirected to log-sale as their default landing page
+  if (session.user.role === "STAFF") {
+    redirect("/dashboard/log-sale");
+  }
+
   const stats = await getDashboardStats();
 
   const statCards = [
