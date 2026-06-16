@@ -49,6 +49,15 @@ enum UserActivityAction {
   PASSWORD_CHANGED
 }
 
+// Stage 6: Notification types surfaced in the in-app notification bell.
+// LOW_STOCK is forward-referenced for Stage 10 so this enum requires no future migration.
+enum NotificationType {
+  SALE_PENDING_APPROVAL
+  SALE_REJECTED
+  SALE_EDITED
+  LOW_STOCK
+}
+
 model User {
   id                 String                 @id @default(cuid())
   name               String
@@ -70,6 +79,8 @@ model User {
   stockMovements        StockMovement[]
   activityLogsAsActor   UserActivityLog[]      @relation("ActivityLogActor")
   activityLogsAsTarget  UserActivityLog[]      @relation("ActivityLogTarget")
+  // Stage 6: in-app notifications for OWNER/BRANCH_MANAGER review events.
+  notifications         Notification[]
 }
 
 model Account {
@@ -306,6 +317,8 @@ model Sale {
   updatedAt        DateTime        @updatedAt
   items            SaleItem[]
   stockMovements   StockMovement[]
+  // Stage 6: notifications triggered by this sale (e.g. rejection notices to the logging staff member).
+  notifications    Notification[]
 }
 
 // SaleItem — one line item within a Sale.
@@ -329,4 +342,30 @@ model SaleItem {
   // Positive integer — max 1000 enforced in lib/validations/sale.ts, not here.
   quantity         Int
   createdAt        DateTime        @default(now())
+}
+
+// Stage 6: In-app notification record for a single recipient.
+// APPEND-ONLY in spirit — no DELETE or UPDATE routes are created for this model.
+// Composite index on (userId, isRead, createdAt) enables efficient:
+//   - unread count queries  (userId + isRead=false)
+//   - "recent notifications" list  (userId + ORDER BY createdAt DESC)
+model Notification {
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          NotificationType
+  // max 150 chars — enforced in lib/notifications.ts createNotification params validation
+  title         String           @db.VarChar(150)
+  // max 500 chars — enforced in lib/notifications.ts createNotification params validation
+  body          String           @db.VarChar(500)
+  // Optional deep-link URL rendered in the notification bell dropdown.
+  linkUrl       String?
+  isRead        Boolean          @default(false)
+  // Optional FK to the Sale that triggered this notification.
+  // onDelete: SetNull — notifications must survive even if a Sale row is removed.
+  relatedSaleId String?
+  relatedSale   Sale?            @relation(fields: [relatedSaleId], references: [id], onDelete: SetNull)
+  createdAt     DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
 }
