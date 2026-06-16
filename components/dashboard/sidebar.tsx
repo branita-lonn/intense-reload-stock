@@ -29,6 +29,7 @@ import {
   ShoppingCart,
   FileClock,
   Boxes,
+  ClipboardCheck,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 import {
   Sheet,
   SheetContent,
@@ -98,6 +100,13 @@ const ALL_NAV_LINKS: NavLink[] = [
     icon: FileClock,
     exact: false,
     roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+  },
+  {
+    href: "/dashboard/approvals",
+    label: "Approvals",
+    icon: ClipboardCheck,
+    exact: false,
+    roles: ["OWNER", "BRANCH_MANAGER"],
   },
   {
     href: "/dashboard/stock-in",
@@ -356,35 +365,43 @@ export function DashboardSidebar({
       </aside>
 
       {/* Mobile hamburger — visible on < lg */}
-      <div className="lg:hidden fixed top-0 left-0 z-40 flex h-14 w-full items-center border-b bg-card px-4">
-        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetTrigger asChild>
-            <Button
-              id="mobile-menu-btn"
-              variant="ghost"
-              size="icon"
-              aria-label="Open navigation menu"
-              className="mr-3 rounded-xl"
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </SheetTrigger>
+      <div className="lg:hidden fixed top-0 left-0 z-40 flex h-14 w-full items-center justify-between border-b bg-card px-4">
+        <div className="flex items-center">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+            <SheetTrigger asChild>
+              <Button
+                id="mobile-menu-btn"
+                variant="ghost"
+                size="icon"
+                aria-label="Open navigation menu"
+                className="mr-3 rounded-xl"
+              >
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </Button>
+            </SheetTrigger>
+
+            <SheetContent side="left" className="w-64 p-0">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+              <NavContent
+                storeName={storeName}
+                user={user}
+                accessibleBranches={accessibleBranches}
+                onNavClick={() => setMobileOpen(false)}
+              />
+            </SheetContent>
+          </Sheet>
 
           <div className="flex items-center gap-2">
             <Package2 className="h-5 w-5 text-primary" />
-            <span className="font-bold text-foreground text-sm">{storeName}</span>
+            <span className="font-bold text-foreground text-sm truncate max-w-[120px] sm:max-w-[200px]">
+              {storeName}
+            </span>
           </div>
+        </div>
 
-          <SheetContent side="left" className="w-64 p-0">
-            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <NavContent
-              storeName={storeName}
-              user={user}
-              accessibleBranches={accessibleBranches}
-              onNavClick={() => setMobileOpen(false)}
-            />
-          </SheetContent>
-        </Sheet>
+        <div className="flex items-center gap-2 pr-1">
+          <NotificationBell />
+        </div>
       </div>
 
       {/* Spacer for mobile top bar */}

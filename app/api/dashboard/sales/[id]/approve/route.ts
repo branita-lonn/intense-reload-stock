@@ -3,9 +3,11 @@
 // NOTE: Approval does NOT change Inventory.quantity — the decrement happened at
 // logging time (Stage 5). Approval is a status change only. This is intentional
 // by design: approval is an audit checkpoint, not an inventory gate.
+// Notifies the staff member who logged the sale via createNotification (best-effort).
 
 import { requireSession, requireBranchAccess, requireRole } from "@/lib/authz";
 import { handleApiError, ValidationError, NotFoundError } from "@/lib/errors";
+import { createNotification } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(
@@ -59,6 +61,17 @@ export async function POST(
       });
 
       return updated;
+    });
+
+    // Notify the staff member who logged the sale (outside transaction — best-effort;
+    // a notification failure must never roll back a successful approval).
+    await createNotification({
+      userId: sale.loggedById,
+      type: "SALE_PENDING_APPROVAL", // reused for "was reviewed" — no separate APPROVED type needed
+      title: "Your sale was approved ✓",
+      body: "A sale you logged has been reviewed and approved by a manager.",
+      linkUrl: "/dashboard/sales",
+      relatedSaleId: saleId,
     });
 
     return Response.json({ sale: updatedSale }, { status: 200 });

@@ -3,10 +3,12 @@
 // Returns partial-success reporting: { approved: string[], skipped: { saleId, reason }[] }.
 // A request to approve sales the user lacks branch access to fails for those items
 // specifically — the rest are still approved (same philosophy as Stage 4 CSV import).
+// Notifies each affected staff member via createNotification (best-effort, post-transaction).
 
 import { requireSession, requireRole, userCanAccessBranch } from "@/lib/authz";
 import { handleApiError, ValidationError } from "@/lib/errors";
 import { approveSalesSchema } from "@/lib/validations/sale-review";
+import { createNotification } from "@/lib/notifications";
 import { prisma } from "@/lib/prisma";
 
 interface SkippedSale {
@@ -98,6 +100,21 @@ export async function POST(request: Request): Promise<Response> {
         approvedIds.push(sale.id);
       }
     });
+
+    // Fire approval notifications for each approved sale (best-effort — outside transaction).
+    // allSettled ensures a single notification failure never blocks the response.
+    await Promise.allSettled(
+      eligible.map((sale) =>
+        createNotification({
+          userId: sale.loggedById,
+          type: "SALE_PENDING_APPROVAL",
+          title: "Your sale was approved ✓",
+          body: "A sale you logged has been reviewed and approved by a manager.",
+          linkUrl: "/dashboard/sales",
+          relatedSaleId: sale.id,
+        })
+      )
+    );
 
     return Response.json({ approved: approvedIds, skipped }, { status: 200 });
   } catch (error: unknown) {

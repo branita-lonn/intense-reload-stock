@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleBranchIds } from "@/lib/authz";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
+import { NotificationBell } from "@/components/dashboard/notification-bell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -54,11 +55,24 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         }}
         accessibleBranches={accessibleBranches}
       />
-      <main className="flex-1 overflow-y-auto lg:ml-0">
-        <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-7xl">
-          {children}
-        </div>
-      </main>
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Desktop Header — matches height of mobile top bar */}
+        <header className="hidden lg:flex h-14 items-center justify-between border-b bg-card px-8 flex-shrink-0">
+          <div className="text-sm font-medium text-muted-foreground">
+            {/* Left empty for symmetry/cleanliness */}
+          </div>
+          <div className="flex items-center gap-4">
+            <NotificationBell />
+          </div>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-7xl">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

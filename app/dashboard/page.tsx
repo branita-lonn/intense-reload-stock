@@ -3,10 +3,13 @@
 // Full analytics arrive in Stage 10; these are simple Prisma count queries.
 
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { GitBranch, Package, Layers, AlertTriangle } from "lucide-react";
+import { getAccessibleBranchIds } from "@/lib/authz";
+import { GitBranch, Package, Layers, AlertTriangle, ClipboardCheck } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { UserRole } from "@prisma/client";
 
 const roleLabels: Record<UserRole, string> = {
@@ -15,8 +18,8 @@ const roleLabels: Record<UserRole, string> = {
   STAFF: "Staff",
 };
 
-async function getDashboardStats() {
-  const [totalBranches, stockBearingCategories, totalProducts, lowStockItems] =
+async function getDashboardStats(accessibleBranchIds: string[]) {
+  const [totalBranches, stockBearingCategories, totalProducts, lowStockItems, pendingApprovals] =
     await Promise.all([
       prisma.branch.count({ where: { isActive: true } }),
       prisma.category.count({ where: { isStockBearing: true, isActive: true } }),
@@ -25,11 +28,18 @@ async function getDashboardStats() {
         where: {
           isReferenceSnapshot: false,
           quantity: { gt: 0, lte: 10 },
+          branchId: { in: accessibleBranchIds },
+        },
+      }),
+      prisma.sale.count({
+        where: {
+          status: "PENDING",
+          branchId: { in: accessibleBranchIds },
         },
       }),
     ]);
 
-  return { totalBranches, stockBearingCategories, totalProducts, lowStockItems };
+  return { totalBranches, stockBearingCategories, totalProducts, lowStockItems, pendingApprovals };
 }
 
 export default async function DashboardPage() {
@@ -41,7 +51,8 @@ export default async function DashboardPage() {
     redirect("/dashboard/log-sale");
   }
 
-  const stats = await getDashboardStats();
+  const accessibleBranchIds = await getAccessibleBranchIds(session);
+  const stats = await getDashboardStats(accessibleBranchIds);
 
   const statCards = [
     {
@@ -77,8 +88,18 @@ export default async function DashboardPage() {
       value: stats.lowStockItems,
       icon: AlertTriangle,
       description: "At or below threshold",
+      color: "text-rose-500",
+      bg: "bg-rose-500/10",
+    },
+    {
+      id: "stat-pending-approvals",
+      title: "Pending Approvals",
+      value: stats.pendingApprovals,
+      icon: ClipboardCheck,
+      description: "Awaiting owner/manager review",
       color: "text-amber-500",
       bg: "bg-amber-500/10",
+      href: "/dashboard/approvals",
     },
   ];
 
@@ -95,16 +116,22 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stat Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map((card) => {
           const Icon = card.icon;
-          return (
-            <Card key={card.id} id={card.id} className="rounded-3xl border bg-card shadow-sm">
+          const cardContent = (
+            <Card
+              id={card.id}
+              className={cn(
+                "rounded-3xl border bg-card shadow-sm h-full transition-all duration-200",
+                card.href && "hover:border-primary/40 hover:shadow-md cursor-pointer group"
+              )}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors">
                   {card.title}
                 </CardTitle>
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.bg}`}>
+                <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-105 ${card.bg}`}>
                   <Icon className={`h-5 w-5 ${card.color}`} />
                 </div>
               </CardHeader>
@@ -114,6 +141,16 @@ export default async function DashboardPage() {
               </CardContent>
             </Card>
           );
+
+          if (card.href) {
+            return (
+              <Link key={card.id} href={card.href} className="block">
+                {cardContent}
+              </Link>
+            );
+          }
+
+          return <div key={card.id}>{cardContent}</div>;
         })}
       </div>
 
