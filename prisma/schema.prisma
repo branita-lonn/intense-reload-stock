@@ -47,6 +47,9 @@ enum UserActivityAction {
   ACCOUNT_DEACTIVATED
   ACCOUNT_REACTIVATED
   PASSWORD_CHANGED
+  SALE_APPROVED
+  SALE_REJECTED
+  SALE_EDITED
 }
 
 // Stage 6: Notification types surfaced in the in-app notification bell.
@@ -127,13 +130,14 @@ model Branch {
   town              String
   address           String?                // Street-level detail beyond town
   contactNumber     String?
-  isActive          Boolean                @default(true)
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  inventoryRecords  Inventory[]
-  stockMovements    StockMovement[]
-  userAssignments   UserBranchAssignment[]
-  sales             Sale[]
+  isActive                     Boolean                @default(true)
+  requireSaleApprovalOverride  Boolean?               // null = inherit from StoreSettings, true/false explicitly overrides
+  createdAt                    DateTime               @default(now())
+  updatedAt                    DateTime               @updatedAt
+  inventoryRecords             Inventory[]
+  stockMovements               StockMovement[]
+  userAssignments              UserBranchAssignment[]
+  sales                        Sale[]
 }
 
 model UserBranchAssignment {

@@ -8,6 +8,7 @@ import { handleApiError, ValidationError, NotFoundError, RateLimitError } from "
 import { logSaleSchema } from "@/lib/validations/sale";
 import { checkSalesRateLimit } from "@/lib/rate-limit";
 import { resolveNodeDisplayName } from "@/lib/inventory-queries";
+import { getEffectiveApprovalSetting } from "@/lib/sale-settings";
 import { prisma } from "@/lib/prisma";
 import { SaleStatus } from "@prisma/client";
 
@@ -155,11 +156,10 @@ export async function POST(request: Request): Promise<Response> {
     // 3. Enforce branch access check
     await requireBranchAccess(session.user.id, branchId);
 
-    // 4. Fetch StoreSettings for requireSaleApproval global flag
-    const settings = await prisma.storeSettings.findFirst({
-      select: { requireSaleApproval: true },
-    });
-    const requireApproval = settings?.requireSaleApproval ?? true;
+    // 4. Determine whether this branch requires approval (branch override → store default).
+    // Commit 3 (Stage 6) introduced per-branch overrides — using getEffectiveApprovalSetting
+    // instead of reading StoreSettings directly ensures the override is respected.
+    const requireApproval = await getEffectiveApprovalSetting(branchId);
 
     // 5. Execute transactional updates
     const result = await prisma.$transaction(async (tx) => {
