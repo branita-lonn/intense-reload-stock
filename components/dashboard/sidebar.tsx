@@ -214,7 +214,7 @@ function BranchSwitcher({
   return (
     <div className="mx-3 my-2">
       <p className="px-1 mb-1 text-xs text-muted-foreground">Current branch</p>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <button
             id="branch-switcher-trigger"
@@ -279,7 +279,7 @@ function NavContent({
   }, []);
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col min-h-0">
       {/* Store Header */}
       <div className="flex items-center gap-3 px-4 py-5">
         <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary">
@@ -302,7 +302,7 @@ function NavContent({
       <Separator />
 
       {/* Role-filtered Navigation Links */}
-      <nav aria-label="Dashboard navigation" className="flex-1 space-y-1 px-3 py-4">
+      <nav aria-label="Dashboard navigation" className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {visibleLinks.map((link) => {
           const isActive = link.exact
             ? pathname === link.href
@@ -331,7 +331,7 @@ function NavContent({
       <Separator />
 
       {/* User info + sign out */}
-      <div className="space-y-3 px-4 py-4">
+      <div className="flex-shrink-0 space-y-3 px-4 py-4">
         <div className="space-y-1">
           <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
           <p className="text-xs text-muted-foreground truncate">{user.email}</p>

@@ -38,14 +38,15 @@ export default async function Home() {
         </div>
 
         {/* Brand Logo Card */}
-        <div className="relative mb-8 flex items-center justify-center rounded-3xl p-6 bg-card/40 border border-border/60 shadow-xl backdrop-blur-lg hover:scale-105 transition-transform duration-300">
+        <div className="relative mb-8 flex items-center justify-center rounded-3xl p-6 bg-card/60 border border-border/60 shadow-xl hover:scale-105 transition-transform duration-300">
           <Image
             src="/icons/logo.png"
             alt="Intense Reload Logo"
-            width={180}
-            height={180}
+            width={200}
+            height={200}
             priority
-            className="object-contain"
+            sizes="(max-width: 640px) 160px, 200px"
+            className="object-contain w-40 h-40 sm:w-48 sm:h-48"
           />
         </div>
 

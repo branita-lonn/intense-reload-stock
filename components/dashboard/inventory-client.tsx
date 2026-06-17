@@ -201,7 +201,7 @@ export function InventoryClient({
         </div>
 
         {/* Stats Cards Section */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {/* Total Stock Units */}
           <div className="rounded-3xl border bg-card p-6 shadow-sm flex items-center justify-between">
             <div className="space-y-1.5">

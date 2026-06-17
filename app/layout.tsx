@@ -8,6 +8,7 @@ import { SessionProvider } from "@/components/providers/session-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/react";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -59,6 +60,8 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            {/* PWA install prompt — global so it catches beforeinstallprompt on any page */}
+            <PwaInstallPrompt />
           </ThemeProvider>
           {/* Toaster for sonner toast notifications — positioned bottom-right */}
           <Toaster position="bottom-right" richColors />
