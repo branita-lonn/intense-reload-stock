@@ -2,6 +2,7 @@
 // Next.js configuration including OWASP-aligned security headers for all routes.
 
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
 
 // ─────────────────────────────────────────────────────────────
 // Security Headers — applied to every route (source: "/:path*")
@@ -89,4 +90,84 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+const withPWA = withPWAInit({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  fallbacks: {
+    document: "/offline.html",
+  },
+  workboxOptions: {
+    runtimeCaching: [
+      {
+        // 1. Security: Never cache API routes, session details or per-user data.
+        // Direct enforcement of A04 (Insecure Design) to prevent stale or leaked auth states.
+        urlPattern: /^\/api\/.*$/i,
+        handler: "NetworkOnly",
+      },
+      {
+        // 2. Dashboard HTML pages - NetworkFirst with 3 seconds timeout
+        // Allows owner/staff to load the app shell from cache if the network is down or slow.
+        urlPattern: /^\/dashboard(\/.*)?$/i,
+        handler: "NetworkFirst",
+        options: {
+          cacheName: "dashboard-html",
+          networkTimeoutSeconds: 3,
+          expiration: {
+            maxEntries: 50,
+            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+          },
+        },
+      },
+      {
+        // 3. Static JS and CSS assets
+        urlPattern: /^\/_next\/static\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "next-static",
+          expiration: {
+            maxEntries: 100,
+            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+          },
+        },
+      },
+      {
+        // 4. PWA manifest file
+        urlPattern: /^\/manifest\.json$/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "pwa-manifest",
+          expiration: {
+            maxEntries: 1,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          },
+        },
+      },
+      {
+        // 5. PWA Icon assets
+        urlPattern: /^\/icons\/.*/i,
+        handler: "CacheFirst",
+        options: {
+          cacheName: "pwa-icons",
+          expiration: {
+            maxEntries: 20,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          },
+        },
+      },
+      {
+        // 6. External fonts (Google Fonts)
+        urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+        handler: "StaleWhileRevalidate",
+        options: {
+          cacheName: "google-fonts",
+          expiration: {
+            maxEntries: 10,
+            maxAgeSeconds: 30 * 24 * 60 * 60,
+          },
+        },
+      },
+    ],
+  },
+});
+
+export default withPWA(nextConfig);

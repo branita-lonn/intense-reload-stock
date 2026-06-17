@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessibleBranchIds } from "@/lib/authz";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -73,6 +74,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           </div>
         </main>
       </div>
+      <PwaInstallPrompt />
     </div>
   );
 }

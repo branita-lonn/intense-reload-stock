@@ -1,7 +1,7 @@
 // app/layout.tsx
 // Root application layout — applies global fonts, dark mode detection, SessionProvider, and Toaster.
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
@@ -20,6 +20,23 @@ export const metadata: Metadata = {
   },
   description:
     "Multi-branch inventory and stock management system for Intense Reload clothing & accessories.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "IR Inventory",
+  },
+  icons: {
+    apple: "/icons/icon-192.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
