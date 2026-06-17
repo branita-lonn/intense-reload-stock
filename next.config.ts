@@ -69,6 +69,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Empty turbopack config satisfies Next.js 16's requirement that applications
+  // with a webpack config also acknowledge Turbopack. The PWA plugin's webpack
+  // config is only exercised during production builds; in dev, the PWA plugin
+  // is disabled (disable: process.env.NODE_ENV === "development" above).
+  turbopack: {},
+
   async headers() {
     return [
       {

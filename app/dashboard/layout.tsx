@@ -60,6 +60,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         accessibleBranches={accessibleBranches}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Spacer for mobile top bar */}
+        <div className="lg:hidden h-14 w-full flex-shrink-0" />
+
         {/* Desktop Header — matches height of mobile top bar */}
         <header className="hidden lg:flex h-14 items-center justify-between border-b bg-card px-8 flex-shrink-0">
           <div className="text-sm font-medium text-muted-foreground">

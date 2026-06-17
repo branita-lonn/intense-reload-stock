@@ -413,9 +413,6 @@ export function DashboardSidebar({
           <NotificationBell />
         </div>
       </div>
-
-      {/* Spacer for mobile top bar */}
-      <div className="lg:hidden h-14 w-full" />
     </>
   );
 }
