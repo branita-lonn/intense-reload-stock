@@ -1,10 +1,11 @@
 // app/layout.tsx
-// Root application layout — applies global fonts, dark mode detection, SessionProvider, and Toaster.
+// Root application layout — applies global fonts, dark mode detection, SessionProvider, ThemeProvider, and Toaster.
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "@/components/providers/session-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -42,28 +43,23 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
+  ...props
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} h-full antialiased`}>
-      <head>
-        {/*
-         * Theme detection script — runs synchronously before React hydration to prevent
-         * a flash of the wrong theme. Reads the user's system preference (prefers-color-scheme)
-         * and applies the "dark" class to <html> if dark mode is preferred.
-         * NOTE: This is intentionally a raw <script> tag, NOT a Next.js Script component,
-         * because it must execute before any paint. Do not move it or defer it.
-         */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=window.matchMedia('(prefers-color-scheme: dark)');if(m.matches){document.documentElement.classList.add('dark');}}catch(e){}})();`,
-          }}
-        />
-      </head>
+      <head />
       <body className="min-h-full bg-background text-foreground flex flex-col">
         <SessionProvider>
-          {children}
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+          </ThemeProvider>
           {/* Toaster for sonner toast notifications — positioned bottom-right */}
           <Toaster position="bottom-right" richColors />
           <Analytics />

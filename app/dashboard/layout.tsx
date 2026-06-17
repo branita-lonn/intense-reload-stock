@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessibleBranchIds } from "@/lib/authz";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
+import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 
 interface DashboardLayoutProps {
@@ -69,6 +70,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
             {/* Left empty for symmetry/cleanliness */}
           </div>
           <div className="flex items-center gap-4">
+            <ThemeToggle />
             <NotificationBell />
           </div>
         </header>

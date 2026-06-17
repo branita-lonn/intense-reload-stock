@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
+import { ThemeToggle } from "@/components/dashboard/theme-toggle";
 import {
   Sheet,
   SheetContent,
@@ -410,6 +411,7 @@ export function DashboardSidebar({
         </div>
 
         <div className="flex items-center gap-2 pr-1">
+          <ThemeToggle />
           <NotificationBell />
         </div>
       </div>
