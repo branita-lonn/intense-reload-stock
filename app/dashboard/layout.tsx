@@ -47,6 +47,9 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground focus:border focus:rounded-xl">
+        Skip to main content
+      </a>
       <DashboardSidebar
         storeName={storeName}
         user={{
@@ -68,7 +71,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto">
+        <main id="main-content" className="flex-1 overflow-y-auto">
           <div className="container mx-auto px-4 py-6 sm:px-6 lg:px-8 max-w-7xl">
             {children}
           </div>

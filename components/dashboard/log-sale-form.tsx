@@ -593,12 +593,13 @@ export function LogSaleForm({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* Small Inline Stepper */}
-                  <div className="flex items-center border rounded-lg bg-background h-8">
+                  {/* Small Inline Stepper — buttons are visually h-8 but wrapped in min-44px touch zones for mobile WCAG 2.5.5 */}
+                  <div className="flex items-center border rounded-lg bg-background">
                     <button
-                      className="px-2 text-muted-foreground hover:text-foreground h-full"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] px-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       onClick={() => handleUpdateBasketQty(item.key, item.quantity - 1)}
                       disabled={item.quantity <= 1}
+                      aria-label="Decrease quantity"
                     >
                       <Minus className="h-3 w-3" />
                     </button>
@@ -606,9 +607,10 @@ export function LogSaleForm({
                       {item.quantity}
                     </span>
                     <button
-                      className="px-2 text-muted-foreground hover:text-foreground h-full"
+                      className="flex items-center justify-center min-h-[44px] min-w-[44px] px-2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
                       onClick={() => handleUpdateBasketQty(item.key, item.quantity + 1)}
                       disabled={item.quantity >= 1000}
+                      aria-label="Increase quantity"
                     >
                       <Plus className="h-3 w-3" />
                     </button>
@@ -617,7 +619,8 @@ export function LogSaleForm({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive rounded-lg flex-shrink-0"
+                    aria-label="Remove from basket"
+                    className="min-h-[44px] min-w-[44px] hover:bg-destructive/10 hover:text-destructive rounded-lg flex-shrink-0"
                     onClick={() => handleRemoveFromBasket(item.key)}
                   >
                     <Trash2 className="h-4 w-4" />

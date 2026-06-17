@@ -98,9 +98,19 @@ export function StockCountClient({
 
   const pendingUpdatesRef = useRef<Record<string, number>>({});
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Auto-focus the first uncounted input when the count session loads on mobile (Task 3b)
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   const isCompleted = stockCount.status === "COMPLETED";
   const isManager = userRole === "OWNER" || userRole === "BRANCH_MANAGER";
+
+  // Auto-focus the first uncounted input on mount for faster mobile data entry
+  useEffect(() => {
+    if (!isCompleted && firstInputRef.current) {
+      firstInputRef.current.focus();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Calculate live statistics
   const totalItems = stockCount.items.length;
@@ -527,7 +537,7 @@ export function StockCountClient({
 
             <div className="flex rounded-2xl border bg-muted/20 p-1 self-start sm:self-center">
               <button
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-colors ${
                   filter === "ALL" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setFilter("ALL")}
@@ -535,7 +545,7 @@ export function StockCountClient({
                 All
               </button>
               <button
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-colors ${
                   filter === "UNCOUNTED" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setFilter("UNCOUNTED")}
@@ -543,7 +553,7 @@ export function StockCountClient({
                 Uncounted Only
               </button>
               <button
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                className={`px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-colors ${
                   filter === "DISCREPANCY" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
                 onClick={() => setFilter("DISCREPANCY")}
@@ -569,7 +579,10 @@ export function StockCountClient({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItems.map((item) => {
+                {/* Compute first uncounted item id once for the auto-focus ref (Task 3b) */
+                (() => {
+                  const firstUncountedId = filteredItems.find(item => item.countedQty === null)?.id;
+                  return filteredItems.map((item) => {
                   let varianceBadge = null;
 
                   if (item.countedQty === null) {
@@ -626,6 +639,7 @@ export function StockCountClient({
                             value={localQuantities[item.id] || ""}
                             onChange={(e) => handleInputChange(item.id, e.target.value)}
                             onBlur={() => handleInputBlur(item.id)}
+                            ref={item.id === firstUncountedId ? firstInputRef : undefined}
                           />
                         )}
                       </TableCell>
@@ -633,7 +647,8 @@ export function StockCountClient({
                       <TableCell className="text-right py-4">{varianceBadge}</TableCell>
                     </TableRow>
                   );
-                })}
+                  });
+                })()}
               </TableBody>
             </Table>
           )}

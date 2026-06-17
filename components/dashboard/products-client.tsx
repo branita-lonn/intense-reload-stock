@@ -8,6 +8,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import dynamic from "next/dynamic";
+
+const CsvImportDialog = dynamic(
+  () => import("./csv-import-dialog").then((mod) => mod.CsvImportDialog),
+  {
+    loading: () => (
+      <Button variant="outline" className="rounded-xl gap-2" disabled>
+        <Loader2 className="h-4 w-4 animate-spin" />
+        CSV Import
+      </Button>
+    ),
+    ssr: false,
+  }
+);
 import {
   FolderTree,
   Trash2,
@@ -315,11 +329,14 @@ export function ProductsClient({
           </p>
         </div>
         {hasMutationRights && (
-          <Link href="/dashboard/products/new">
-            <Button id="add-product-btn" className="rounded-xl flex items-center gap-1.5">
-              <Plus className="w-4 h-4" /> Add product
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <CsvImportDialog branches={branches} onSuccess={fetchProducts} />
+            <Link href="/dashboard/products/new">
+              <Button id="add-product-btn" className="rounded-xl flex items-center gap-1.5">
+                <Plus className="w-4 h-4" /> Add product
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 

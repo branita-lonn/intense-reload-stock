@@ -143,7 +143,7 @@ export function NotificationBell() {
         <button
           id="notification-bell-btn"
           aria-label="Open notifications"
-          className="relative p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all flex items-center justify-center focus:outline-none"
+          className="relative rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all flex items-center justify-center focus:outline-none min-h-[44px] min-w-[44px]"
         >
           <Bell className={cn("h-5 w-5", unreadCount > 0 && "animate-bounce duration-1000")} />
           {unreadCount > 0 && (
