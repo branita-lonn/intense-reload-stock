@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
+import { clearOfflineQueue } from "@/lib/offline-queue";
 import {
   LayoutDashboard,
   Package,
@@ -266,6 +267,8 @@ function NavContent({
 
   const handleSignOut = useCallback(async () => {
     try {
+      // Clear offline queue on logout to prevent queue leakage between users on shared devices (OWASP A04).
+      await clearOfflineQueue();
       await signOut({ callbackUrl: "/auth/login" });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Sign out failed";

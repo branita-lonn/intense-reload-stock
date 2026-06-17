@@ -4,10 +4,18 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import {
+  enqueueSale,
+  getPendingQueue,
+  removeSale,
+  getPendingCount,
+  updateSale,
+} from "@/lib/offline-queue";
 import {
   Plus,
   Minus,
@@ -95,6 +103,98 @@ export function LogSaleForm({
   // Selected item (being configured in stepper before adding to basket)
   const [selectedNode, setSelectedNode] = useState<InventoryRow | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+
+  const isOnline = useOnlineStatus();
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Load initial pending count on mount
+  useEffect(() => {
+    async function loadPending() {
+      const count = await getPendingCount();
+      setPendingCount(count);
+    }
+    loadPending();
+  }, []);
+
+  const syncPendingSales = useCallback(async () => {
+    if (isSyncing) return;
+    const queue = await getPendingQueue();
+    if (queue.length === 0) return;
+
+    setIsSyncing(true);
+    const syncToastId = toast.loading(`Reconnected — syncing ${queue.length} pending sale(s)...`);
+    
+    let successCount = 0;
+    let failedCount = 0;
+
+    for (const sale of queue) {
+      if (sale.retryCount >= 3) {
+        failedCount++;
+        continue;
+      }
+
+      const payload = {
+        branchId: sale.branchId,
+        items: sale.items,
+      };
+
+      try {
+        const res = await fetch("/api/dashboard/sales", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          await removeSale(sale.localId);
+          successCount++;
+        } else {
+          const updated = { ...sale, retryCount: sale.retryCount + 1 };
+          await updateSale(updated);
+          if (updated.retryCount >= 3) {
+            toast.error("A queued sale failed to sync after multiple attempts and requires manual review.");
+            failedCount++;
+          }
+        }
+      } catch {
+        const updated = { ...sale, retryCount: sale.retryCount + 1 };
+        await updateSale(updated);
+        if (updated.retryCount >= 3) {
+          toast.error("A queued sale failed to sync and requires manual review.");
+          failedCount++;
+        }
+      }
+    }
+
+    const currentCount = await getPendingCount();
+    setPendingCount(currentCount);
+    setIsSyncing(false);
+    toast.dismiss(syncToastId);
+
+    if (successCount > 0 && failedCount === 0) {
+      toast.success(`${successCount} sale(s) synced successfully.`);
+    } else if (successCount > 0 || failedCount > 0) {
+      toast.info(`Sync complete: ${successCount} succeeded, ${failedCount} failed/pending review.`);
+    }
+
+    router.refresh();
+    try {
+      const refreshRes = await fetch(`/api/dashboard/inventory?branchId=${branchId}`);
+      if (refreshRes.ok) {
+        const refreshData = (await refreshRes.json()) as { rows: InventoryRow[] };
+        setInventoryRows(refreshData.rows);
+      }
+    } catch {
+      // Ignore background refresh errors
+    }
+  }, [branchId, isSyncing, router]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncPendingSales();
+    }
+  }, [isOnline, syncPendingSales]);
 
   const activeBranchName = branches.find((b) => b.id === branchId)?.name ?? "Unknown Branch";
 
@@ -187,6 +287,28 @@ export function LogSaleForm({
       return;
     }
 
+    if (!isOnline) {
+      try {
+        const itemsPayload = basket.map((item) => ({
+          categoryId: item.row.nodeType === "CATEGORY" ? item.row.nodeId : undefined,
+          productId: item.row.nodeType === "PRODUCT" ? item.row.nodeId : undefined,
+          productVariantId: item.row.nodeType === "VARIANT" ? item.row.nodeId : undefined,
+          quantity: item.quantity,
+        }));
+        await enqueueSale(branchId, itemsPayload);
+        const count = await getPendingCount();
+        setPendingCount(count);
+        toast.success("You're offline — sale saved and will sync when you reconnect.");
+        setBasket([]);
+        setSelectedNode(null);
+        setSelectedQuantity(1);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to queue sale offline.";
+        toast.error(message);
+      }
+      return;
+    }
+
     setIsSubmitting(true);
 
     const payload = {
@@ -262,6 +384,11 @@ export function LogSaleForm({
           {requireSaleApproval && (
             <Badge className="text-[10px] py-0.5 px-2 bg-amber-500/10 text-amber-600 border border-amber-500/20 shadow-none">
               Requires Approval
+            </Badge>
+          )}
+          {pendingCount > 0 && (
+            <Badge className="text-[10px] py-0.5 px-2 bg-blue-500/10 text-blue-600 border border-blue-500/20 shadow-none animate-pulse">
+              {pendingCount} Pending Sync
             </Badge>
           )}
         </div>
