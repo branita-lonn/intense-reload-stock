@@ -57,8 +57,10 @@ dist/
 auth.ts
 
 .next/
-public/
 node_modules/
 dist/
+public/sw.js*
+public/workbox-*.js
+public/fallback-*.js
 *.log
 .env

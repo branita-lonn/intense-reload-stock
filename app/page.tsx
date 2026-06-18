@@ -9,13 +9,13 @@ export default async function Home() {
   const isLoggedIn = !!session?.user;
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-radial from-background via-muted/30 to-background transition-colors duration-300">
+    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-x-hidden bg-radial from-background via-muted/30 to-background transition-colors duration-300">
       {/* Ambient Background Gradients */}
       <div className="absolute top-[-20%] left-[-10%] h-[600px] w-[600px] rounded-full bg-primary/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-violet-500/10 blur-[120px] pointer-events-none" />
 
       {/* Header with Theme Toggle */}
-      <header className="absolute top-0 right-0 left-0 flex h-20 items-center justify-between px-6 sm:px-12 z-50">
+      <header className="relative flex w-full h-20 items-center justify-between px-6 sm:px-12 z-50">
         <div className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
             <Box className="h-5 w-5 text-primary-foreground" />
@@ -30,7 +30,7 @@ export default async function Home() {
       </header>
 
       {/* Main Hero Section */}
-      <main className="relative flex flex-col items-center justify-center px-4 text-center z-10 max-w-4xl w-full">
+      <main className="relative flex flex-1 flex-col items-center justify-center px-4 py-12 text-center z-10 max-w-4xl w-full">
         {/* Brand Badge */}
         <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-md">
           <Shield className="h-3.5 w-3.5" />
@@ -81,7 +81,7 @@ export default async function Home() {
       </main>
 
       {/* Footer Branding */}
-      <footer className="absolute bottom-6 text-center text-xs text-muted-foreground/60 w-full">
+      <footer className="relative py-6 text-center text-xs text-muted-foreground/60 w-full">
         &copy; {new Date().getFullYear()} Intense Reload. All rights reserved.
       </footer>
     </div>
