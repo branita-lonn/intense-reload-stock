@@ -81,90 +81,120 @@ interface NavLink {
   roles: UserRole[];
 }
 
-const ALL_NAV_LINKS: NavLink[] = [
+interface NavGroup {
+  id: string;
+  title: string;
+  links: NavLink[];
+}
+
+const ALL_NAV_GROUPS: NavGroup[] = [
   {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    exact: true,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+    id: "overview",
+    title: "Overview",
+    links: [
+      {
+        href: "/dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        exact: true,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+    ],
   },
   {
-    href: "/dashboard/log-sale",
-    label: "Log Sale",
-    icon: ShoppingCart,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+    id: "sales",
+    title: "Sales & Operations",
+    links: [
+      {
+        href: "/dashboard/log-sale",
+        label: "Log Sale",
+        icon: ShoppingCart,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
+        href: "/dashboard/sales",
+        label: "Sales Logs",
+        icon: FileClock,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
+        href: "/dashboard/approvals",
+        label: "Approvals",
+        icon: ClipboardCheck,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+    ],
   },
   {
-    href: "/dashboard/sales",
-    label: "Sales Logs",
-    icon: FileClock,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+    id: "inventory-control",
+    title: "Inventory Control",
+    links: [
+      {
+        href: "/dashboard/inventory",
+        label: "Inventory",
+        icon: Package,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
+        href: "/dashboard/stock-in",
+        label: "Stock-In",
+        icon: Boxes,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
+        href: "/dashboard/stock-count",
+        label: "Stock Count",
+        icon: ClipboardCheck,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
+        href: "/dashboard/products",
+        label: "Products",
+        icon: Layers,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+      {
+        href: "/dashboard/categories",
+        label: "Categories",
+        icon: FolderTree,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+    ],
   },
   {
-    href: "/dashboard/approvals",
-    label: "Approvals",
-    icon: ClipboardCheck,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER"],
-  },
-  {
-    href: "/dashboard/stock-in",
-    label: "Stock-In",
-    icon: Boxes,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
-  },
-  {
-    href: "/dashboard/stock-count",
-    label: "Stock Count",
-    icon: ClipboardCheck,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
-  },
-  {
-    href: "/dashboard/inventory",
-    label: "Inventory",
-    icon: Package,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
-  },
-  {
-    href: "/dashboard/products",
-    label: "Products",
-    icon: Layers,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER"],
-  },
-  {
-    href: "/dashboard/branches",
-    label: "Branches",
-    icon: GitBranch,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER"],
-  },
-  {
-    href: "/dashboard/categories",
-    label: "Categories",
-    icon: FolderTree,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER"],
-  },
-  {
-    href: "/dashboard/staff",
-    label: "Staff",
-    icon: Users,
-    exact: false,
-    roles: ["OWNER", "BRANCH_MANAGER"],
-  },
-  {
-    href: "/dashboard/settings",
-    label: "Settings",
-    icon: Settings,
-    exact: false,
-    roles: ["OWNER"],
+    id: "admin",
+    title: "Administration",
+    links: [
+      {
+        href: "/dashboard/branches",
+        label: "Branches",
+        icon: GitBranch,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+      {
+        href: "/dashboard/staff",
+        label: "Staff",
+        icon: Users,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+      {
+        href: "/dashboard/settings",
+        label: "Settings",
+        icon: Settings,
+        exact: false,
+        roles: ["OWNER"],
+      },
+    ],
   },
 ];
 
@@ -210,43 +240,27 @@ function BranchSwitcher({
     );
   }
 
-  // Multi-branch OWNER or BRANCH_MANAGER: show dropdown
+  // Multi-branch OWNER or BRANCH_MANAGER: show dropdown/select
   return (
     <div className="mx-3 my-2">
-      <p className="px-1 mb-1 text-xs text-muted-foreground">Current branch</p>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <button
-            id="branch-switcher-trigger"
-            className="flex w-full items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors focus:outline-none"
-          >
-            <span className="truncate">{currentBranch?.name ?? "All branches"}</span>
-            <ChevronDown className="h-3.5 w-3.5 flex-shrink-0 ml-1 text-muted-foreground" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="start">
-          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-            Switch branch
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
+      <label htmlFor="branch-switcher" className="px-1 mb-1 block text-xs text-muted-foreground">
+        Current branch
+      </label>
+      <div className="relative">
+        <select
+          id="branch-switcher"
+          value={currentBranch?.id ?? ""}
+          onChange={(e) => selectBranch(e.target.value)}
+          className="w-full appearance-none rounded-xl bg-muted/40 px-3 py-2 pr-8 text-sm font-medium text-foreground hover:bg-muted/70 transition-colors focus:outline-none cursor-pointer"
+        >
           {accessibleBranches.map((branch) => (
-            <DropdownMenuItem
-              key={branch.id}
-              id={`branch-switcher-item-${branch.id}`}
-              onSelect={() => selectBranch(branch.id)}
-              className={cn(
-                "cursor-pointer",
-                currentBranch?.id === branch.id && "bg-primary/10 text-primary"
-              )}
-            >
-              <div className="flex flex-col">
-                <span>{branch.name}</span>
-                <span className="text-xs text-muted-foreground">{branch.town}</span>
-              </div>
-            </DropdownMenuItem>
+            <option key={branch.id} value={branch.id} className="bg-popover text-foreground">
+              {branch.name} ({branch.town})
+            </option>
           ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </select>
+        <ChevronDown className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none text-muted-foreground" />
+      </div>
     </div>
   );
 }
@@ -262,9 +276,10 @@ function NavContent({
 }: DashboardSidebarProps & { onNavClick?: () => void }) {
   const pathname = usePathname();
 
-  const visibleLinks = ALL_NAV_LINKS.filter((link) =>
-    link.roles.includes(user.role)
-  );
+  const filteredGroups = ALL_NAV_GROUPS.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => link.roles.includes(user.role)),
+  })).filter((group) => group.links.length > 0);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -302,30 +317,44 @@ function NavContent({
       <Separator />
 
       {/* Role-filtered Navigation Links */}
-      <nav aria-label="Dashboard navigation" className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {visibleLinks.map((link) => {
-          const isActive = link.exact
-            ? pathname === link.href
-            : pathname.startsWith(link.href);
-          const Icon = link.icon;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              onClick={onNavClick}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon className="h-4 w-4 flex-shrink-0" />
-              {link.label}
-            </Link>
-          );
-        })}
+      <nav aria-label="Dashboard navigation" className="flex-1 space-y-5 px-3 py-4 overflow-y-auto">
+        {filteredGroups.map((group, index) => (
+          <div key={group.id} className="space-y-1">
+            <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-2">
+              {group.title}
+            </p>
+            <div className="space-y-0.5">
+              {group.links.map((link) => {
+                const isActive = link.exact
+                  ? pathname === link.href
+                  : pathname.startsWith(link.href);
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={onNavClick}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                    aria-current={isActive ? "page" : undefined}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </div>
+            {index < filteredGroups.length - 1 && (
+              <div className="pt-3">
+                <Separator className="opacity-50" />
+              </div>
+            )}
+          </div>
+        ))}
       </nav>
 
       <Separator />
