@@ -26,3 +26,17 @@ export async function getEffectiveApprovalSetting(branchId: string): Promise<boo
 
   return settings?.requireSaleApproval ?? true;
 }
+
+/**
+ * Helper to determine the effective POS setting.
+ * Currently reads directly from global StoreSettings.enablePOS.
+ *
+ * @param branchId - The branch ID to check (for future branch-specific overrides).
+ */
+export async function getEffectivePosSetting(branchId: string): Promise<boolean> {
+  const settings = await prisma.storeSettings.findFirst({
+    select: { enablePOS: true },
+  });
+
+  return settings?.enablePOS ?? false;
+}

@@ -75,6 +75,7 @@ interface LogSaleFormProps {
   enableDetailedSaleBreakdown: boolean;
   userRole: UserRole;
   enableBarcodeScanning: boolean;
+  enablePOS: boolean;
 }
 
 interface BasketItem {
@@ -91,6 +92,7 @@ export function LogSaleForm({
   enableDetailedSaleBreakdown,
   userRole,
   enableBarcodeScanning,
+  enablePOS,
 }: LogSaleFormProps) {
   const router = useRouter();
 
@@ -99,6 +101,12 @@ export function LogSaleForm({
   const [loadingRows, setLoadingRows] = useState(false);
   const [basket, setBasket] = useState<BasketItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // POS payment details states
+  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "MPESA" | "CARD">("CASH");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [detailsOpen, setDetailsOpen] = useState(true);
 
   // Search & Node selection states
   const [searchQuery, setSearchQuery] = useState("");
@@ -347,6 +355,15 @@ export function LogSaleForm({
       return;
     }
 
+    // Validate phone format on frontend if POS details are active and present
+    if (enablePOS && customerPhone.trim()) {
+      const phoneRegex = /^(?:07|01)\d{8}$|^\+254\d{9}$/;
+      if (!phoneRegex.test(customerPhone.trim())) {
+        toast.error("Customer phone must be a valid Kenyan mobile number (e.g., 0712345678 or +254712345678).");
+        return;
+      }
+    }
+
     if (!isOnline) {
       try {
         const itemsPayload = basket.map((item) => ({
@@ -379,6 +396,13 @@ export function LogSaleForm({
         productVariantId: item.row.nodeType === "VARIANT" ? item.row.nodeId : undefined,
         quantity: item.quantity,
       })),
+      posDetails: enablePOS
+        ? {
+            paymentMethod,
+            customerName: customerName.trim() || null,
+            customerPhone: customerPhone.trim() || null,
+          }
+        : null,
     };
 
     try {
@@ -391,11 +415,38 @@ export function LogSaleForm({
       const data = await res.json();
 
       if (res.ok) {
+        // Reset states
+        setBasket([]);
+        setSelectedNode(null);
+        setSelectedQuantity(1);
+        setPaymentMethod("CASH");
+        setCustomerName("");
+        setCustomerPhone("");
+
         // Success toasts
         if (requireSaleApproval) {
           toast.success("Sale logged — awaiting approval.");
         } else {
-          toast.success("Sale logged successfully.");
+          if (enablePOS && data.receiptNumber) {
+            toast.success(
+              <div className="flex flex-col gap-2">
+                <span className="font-semibold">Sale logged successfully!</span>
+                <span className="text-xs text-muted-foreground">Receipt: {data.receiptNumber}</span>
+                <a
+                  href={`/dashboard/receipt/${data.id}`}
+                  className="inline-flex items-center justify-center rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1.5 mt-1 transition-colors"
+                >
+                  View Receipt
+                </a>
+              </div>,
+              { duration: 8000 }
+            );
+
+            // Automatically open print dialog in a new window/tab
+            window.open(`/dashboard/receipt/${data.id}?print=true`, "_blank");
+          } else {
+            toast.success("Sale logged successfully.");
+          }
         }
 
         // Show oversold warning if needed
@@ -407,11 +458,6 @@ export function LogSaleForm({
             );
           });
         }
-
-        // Reset state
-        setBasket([]);
-        setSelectedNode(null);
-        setSelectedQuantity(1);
 
         // Refresh inventory rows behind the picker
         const refreshRes = await fetch(`/api/dashboard/inventory?branchId=${branchId}`);
@@ -718,6 +764,80 @@ export function LogSaleForm({
             <span className="text-muted-foreground">Total items in basket:</span>
             <span className="font-extrabold text-foreground text-base">{totalItemsCount} units</span>
           </div>
+        </div>
+      )}
+
+      {/* POS Details Panel */}
+      {enablePOS && basket.length > 0 && (
+        <div className="rounded-3xl border bg-card p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-bold text-foreground flex items-center gap-2">
+              Payment & Customer Details
+            </Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDetailsOpen(!detailsOpen)}
+              className="text-xs font-semibold rounded-lg px-2 h-7"
+            >
+              {detailsOpen ? "Hide" : "Show"}
+            </Button>
+          </div>
+
+          {detailsOpen && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Payment Method *
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["CASH", "MPESA", "CARD"] as const).map((method) => (
+                    <Button
+                      key={method}
+                      type="button"
+                      variant={paymentMethod === method ? "default" : "outline"}
+                      onClick={() => setPaymentMethod(method)}
+                      className="rounded-xl font-semibold text-xs h-10"
+                    >
+                      {method}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Customer Name (Optional)
+                  </Label>
+                  <Input
+                    id="customer-name"
+                    type="text"
+                    placeholder="e.g. John Doe"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    maxLength={100}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer-phone" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Customer Phone (Optional)
+                  </Label>
+                  <Input
+                    id="customer-phone"
+                    type="tel"
+                    placeholder="e.g. 0712345678"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="rounded-xl"
+                  />
+                  <p className="text-[10px] text-muted-foreground">Kenyan mobile format (07xxxxxxxx or +254xxxxxxxxx)</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

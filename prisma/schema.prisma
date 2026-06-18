@@ -48,6 +48,12 @@ enum SaleStatus {
   REJECTED
 }
 
+enum PaymentMethod {
+  CASH
+  MPESA
+  CARD
+}
+
 // Enum for UserActivityLog audit trail actions.
 // APPEND-ONLY — see UserActivityLog model comment.
 enum UserActivityAction {
@@ -153,6 +159,7 @@ model Branch {
   userAssignments              UserBranchAssignment[]
   sales                        Sale[]
   stockCounts                  StockCount[]
+  receiptSequences             ReceiptSequence[]
 }
 
 model UserBranchAssignment {
@@ -338,6 +345,11 @@ model Sale {
   reviewedAt       DateTime?
   // Max 255 chars — set by the reviewer in Stage 6 when rejecting a sale.
   rejectionReason  String?         @db.VarChar(255)
+  paymentMethod    PaymentMethod?
+  customerName     String?         @db.VarChar(100)
+  // customerPhone is personal data; treat accordingly - do not include in logs, analytics aggregations, or CSV exports (Stage 9's activity log must not expose this field).
+  customerPhone    String?         @db.VarChar(20)
+  receiptNumber    String?         @unique
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   items            SaleItem[]
@@ -433,4 +445,13 @@ model StockCountItem {
   variance         Int?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+}
+
+model ReceiptSequence {
+  branchId  String
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  date      String   // Format: "YYYYMMDD"
+  sequence  Int      @default(0)
+
+  @@id([branchId, date])
 }

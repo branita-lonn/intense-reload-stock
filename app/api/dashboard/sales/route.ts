@@ -5,12 +5,12 @@
 import { type NextRequest } from "next/server";
 import { requireSession, requireBranchAccess, getAccessibleBranchIds } from "@/lib/authz";
 import { handleApiError, ValidationError, NotFoundError, RateLimitError } from "@/lib/errors";
-import { logSaleSchema } from "@/lib/validations/sale";
+import { logSaleWithPosSchema } from "@/lib/validations/pos";
 import { checkSalesRateLimit } from "@/lib/rate-limit";
 import { resolveNodeDisplayName } from "@/lib/inventory-queries";
-import { getEffectiveApprovalSetting } from "@/lib/sale-settings";
+import { getEffectiveApprovalSetting, getEffectivePosSetting } from "@/lib/sale-settings";
 import { prisma } from "@/lib/prisma";
-import { SaleStatus } from "@prisma/client";
+import { SaleStatus, PaymentMethod } from "@prisma/client";
 
 /**
  * GET /api/dashboard/sales
@@ -138,12 +138,12 @@ export async function POST(request: Request): Promise<Response> {
 
     // 1. Validate request body
     const body = (await request.json()) as unknown;
-    const parsed = logSaleSchema.safeParse(body);
+    const parsed = logSaleWithPosSchema.safeParse(body);
     if (!parsed.success) {
       throw new ValidationError("Invalid sale data.", parsed.error);
     }
 
-    const { branchId, items } = parsed.data;
+    const { branchId, items, posDetails } = parsed.data;
 
     // 2. Enforce per-user rate limit (30 sales per 5 minutes)
     const rateLimit = await checkSalesRateLimit(session.user.id);
@@ -156,10 +156,9 @@ export async function POST(request: Request): Promise<Response> {
     // 3. Enforce branch access check
     await requireBranchAccess(session.user.id, branchId);
 
-    // 4. Determine whether this branch requires approval (branch override → store default).
-    // Commit 3 (Stage 6) introduced per-branch overrides — using getEffectiveApprovalSetting
-    // instead of reading StoreSettings directly ensures the override is respected.
+    // 4. Determine settings (requireApproval and enablePOS)
     const requireApproval = await getEffectiveApprovalSetting(branchId);
+    const enablePOS = await getEffectivePosSetting(branchId);
 
     // 5. Execute transactional updates
     const result = await prisma.$transaction(async (tx) => {
@@ -209,12 +208,42 @@ export async function POST(request: Request): Promise<Response> {
         }
       }
 
+      // Generate receipt number thread-safely if POS is active and details provided
+      let receiptNumber: string | null = null;
+      let paymentMethod: PaymentMethod | null = null;
+      let customerName: string | null = null;
+      let customerPhone: string | null = null;
+
+      if (enablePOS && posDetails) {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const nowStr = `${yyyy}${mm}${dd}`;
+
+        const seq = await tx.receiptSequence.upsert({
+          where: { branchId_date: { branchId, date: nowStr } },
+          update: { sequence: { increment: 1 } },
+          create: { branchId, date: nowStr, sequence: 1 },
+        });
+
+        const sequenceStr = String(seq.sequence).padStart(4, "0");
+        receiptNumber = `INV-${nowStr}-${sequenceStr}`;
+        paymentMethod = posDetails.paymentMethod as PaymentMethod;
+        customerName = posDetails.customerName ?? null;
+        customerPhone = posDetails.customerPhone ?? null;
+      }
+
       // Create Sale parent record
       const sale = await tx.sale.create({
         data: {
           branchId,
           status: requireApproval ? SaleStatus.PENDING : SaleStatus.APPROVED,
           loggedById: session.user.id,
+          receiptNumber,
+          paymentMethod,
+          customerName,
+          customerPhone,
         },
       });
 
