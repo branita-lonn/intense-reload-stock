@@ -153,13 +153,6 @@ export default async function DashboardPage() {
           return <div key={card.id}>{cardContent}</div>;
         })}
       </div>
-
-      {/* Placeholder for upcoming stages */}
-      <div className="rounded-3xl border bg-card/50 p-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          📦 Full inventory management, branch analytics, and sales tracking arrive in upcoming stages.
-        </p>
-      </div>
     </div>
   );
 }

@@ -31,11 +31,6 @@ export default async function Home() {
 
       {/* Main Hero Section */}
       <main className="relative flex flex-1 flex-col items-center justify-center px-4 py-12 text-center z-10 max-w-4xl w-full">
-        {/* Brand Badge */}
-        <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary backdrop-blur-md">
-          <Shield className="h-3.5 w-3.5" />
-          <span>Enterprise Grade Stock Control</span>
-        </div>
 
         {/* Brand Logo Card */}
         <div className="relative mb-8 flex items-center justify-center rounded-3xl p-6 bg-card/60 border border-border/60 shadow-xl hover:scale-105 transition-transform duration-300">
@@ -53,7 +48,7 @@ export default async function Home() {
         {/* Hero Headings */}
         <h1 className="text-4xl font-black tracking-tight text-foreground sm:text-6xl md:text-7xl leading-[1.1]">
           Intense Reload <br />
-          <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+          <span className="text-2xl bg-primary bg-clip-text text-transparent">
             Stock Management
           </span>
         </h1>
