@@ -68,6 +68,7 @@ enum UserActivityAction {
   SALE_REJECTED
   SALE_EDITED
   SETTINGS_UPDATED
+  FIRST_RUN_SETUP_COMPLETED
 }
 
 // Stage 6: Notification types surfaced in the in-app notification bell.

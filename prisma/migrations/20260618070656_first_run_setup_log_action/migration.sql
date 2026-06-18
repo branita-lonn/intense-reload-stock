@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "UserActivityAction" ADD VALUE 'FIRST_RUN_SETUP_COMPLETED';
