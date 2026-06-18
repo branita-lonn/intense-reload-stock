@@ -17,7 +17,9 @@ import {
   CheckCircle2,
   ChevronDown,
   Info,
+  QrCode,
 } from "lucide-react";
+import { BarcodeScanner } from "./barcode-scanner";
 
 import type { InventoryRow } from "@/lib/inventory-queries";
 import { Button } from "@/components/ui/button";
@@ -48,6 +50,7 @@ interface StockInFormProps {
   branches: Branch[];
   initialBranchId?: string;
   initialInventoryRows: InventoryRow[];
+  enableBarcodeScanning: boolean;
 }
 
 interface BatchItem {
@@ -61,6 +64,7 @@ export function StockInForm({
   branches,
   initialBranchId,
   initialInventoryRows,
+  enableBarcodeScanning,
 }: StockInFormProps) {
   const router = useRouter();
 
@@ -71,6 +75,7 @@ export function StockInForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [nodeSearch, setNodeSearch] = useState("");
   const [nodePickerOpen, setNodePickerOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "Unknown Branch";
 
@@ -123,6 +128,67 @@ export function StockInForm({
     setNodeSearch("");
     setNodePickerOpen(false);
   }
+
+  const handleBarcodeScan = useCallback(async (sku: string) => {
+    const scanToastId = toast.loading(`Searching SKU: ${sku}...`);
+    try {
+      const res = await fetch(
+        `/api/dashboard/products/variants/by-sku?sku=${encodeURIComponent(sku)}&branchId=${branchId}`
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to find product by SKU.");
+        return;
+      }
+      const node = (await res.json()) as {
+        nodeType: "VARIANT";
+        nodeId: string;
+        productId: string;
+        productVariantId: string;
+        displayName: string;
+        categoryPath: string;
+        branchId: string | null;
+        quantity: number | null;
+      };
+
+      // Check if already in batch
+      const alreadyAdded = batchItems.some((bi) => bi.row.nodeId === node.nodeId);
+      if (alreadyAdded) {
+        toast.info("Item is already in the batch list.");
+        setScannerOpen(false);
+        return;
+      }
+
+      const matchedRow = inventoryRows.find((r) => r.nodeId === node.nodeId);
+      if (matchedRow) {
+        addBatchItem(matchedRow);
+        toast.success(`Added: ${matchedRow.displayName}`);
+        setScannerOpen(false);
+      } else {
+        const fallbackRow: InventoryRow = {
+          nodeType: "VARIANT",
+          nodeId: node.nodeId,
+          displayName: node.displayName,
+          categoryPath: node.categoryPath,
+          categoryId: "",
+          productId: node.productId,
+          productVariantId: node.productVariantId,
+          branchId: branchId,
+          branchName: branches.find((b) => b.id === branchId)?.name ?? "Unknown",
+          quantity: node.quantity ?? 0,
+          lowStockThreshold: 0,
+          isLowStock: (node.quantity ?? 0) <= 0,
+        };
+        addBatchItem(fallbackRow);
+        toast.success(`Added: ${node.displayName}`);
+        setScannerOpen(false);
+      }
+    } catch {
+      toast.error("Network error looking up SKU.");
+    } finally {
+      toast.dismiss(scanToastId);
+    }
+  }, [branchId, inventoryRows, batchItems, branches]);
 
   function removeBatchItem(key: string) {
     setBatchItems((prev) => prev.filter((bi) => bi.key !== key));
@@ -243,25 +309,26 @@ export function StockInForm({
         </div>
 
         {/* Combobox-style picker */}
-        <Popover open={nodePickerOpen} onOpenChange={setNodePickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between rounded-xl h-11 font-normal text-muted-foreground"
-              disabled={loadingRows || batchItems.length >= 50}
-            >
-              {loadingRows ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Loading items…
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Search className="h-4 w-4" /> Search for a stock-bearing item…
-                </span>
-              )}
-              <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
-            </Button>
-          </PopoverTrigger>
+        <div className="flex gap-2">
+          <Popover open={nodePickerOpen} onOpenChange={setNodePickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between rounded-xl h-11 font-normal text-muted-foreground"
+                disabled={loadingRows || batchItems.length >= 50}
+              >
+                {loadingRows ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading items…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Search className="h-4 w-4" /> Search for a stock-bearing item…
+                  </span>
+                )}
+                <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
+              </Button>
+            </PopoverTrigger>
           <PopoverContent className="w-[min(90vw,520px)] p-0 rounded-2xl" align="start">
             <Command>
               <CommandInput
@@ -316,6 +383,28 @@ export function StockInForm({
             </Command>
           </PopoverContent>
         </Popover>
+        {enableBarcodeScanning && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-11 w-11 rounded-xl flex-shrink-0"
+            onClick={() => setScannerOpen(!scannerOpen)}
+            title="Scan Barcode / QR Code"
+            disabled={batchItems.length >= 50}
+          >
+            <QrCode className="h-5 w-5" />
+          </Button>
+        )}
+      </div>
+
+      {enableBarcodeScanning && scannerOpen && (
+        <div className="border rounded-2xl p-4 bg-muted/10 animate-in fade-in duration-200">
+          <BarcodeScanner
+            onScan={handleBarcodeScan}
+            onClose={() => setScannerOpen(false)}
+          />
+        </div>
+      )}
 
         {/* Batch item list */}
         {batchItems.length > 0 && (

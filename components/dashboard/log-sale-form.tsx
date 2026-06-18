@@ -31,8 +31,10 @@ import {
   ShoppingCart,
   ChevronDown,
   AlertTriangle,
+  QrCode,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
+import { BarcodeScanner } from "./barcode-scanner";
 
 import type { InventoryRow } from "@/lib/inventory-queries";
 import { Button } from "@/components/ui/button";
@@ -72,6 +74,7 @@ interface LogSaleFormProps {
   requireSaleApproval: boolean;
   enableDetailedSaleBreakdown: boolean;
   userRole: UserRole;
+  enableBarcodeScanning: boolean;
 }
 
 interface BasketItem {
@@ -87,6 +90,7 @@ export function LogSaleForm({
   requireSaleApproval,
   enableDetailedSaleBreakdown,
   userRole,
+  enableBarcodeScanning,
 }: LogSaleFormProps) {
   const router = useRouter();
 
@@ -99,10 +103,66 @@ export function LogSaleForm({
   // Search & Node selection states
   const [searchQuery, setSearchQuery] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   
   // Selected item (being configured in stepper before adding to basket)
   const [selectedNode, setSelectedNode] = useState<InventoryRow | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+
+  const handleBarcodeScan = useCallback(async (sku: string) => {
+    const scanToastId = toast.loading(`Searching SKU: ${sku}...`);
+    try {
+      const res = await fetch(
+        `/api/dashboard/products/variants/by-sku?sku=${encodeURIComponent(sku)}&branchId=${branchId}`
+      );
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to find product by SKU.");
+        return;
+      }
+      const node = (await res.json()) as {
+        nodeType: "VARIANT";
+        nodeId: string;
+        productId: string;
+        productVariantId: string;
+        displayName: string;
+        categoryPath: string;
+        branchId: string | null;
+        quantity: number | null;
+      };
+      
+      // Find matching inventory row by nodeId (which is the variantId)
+      const matchedRow = inventoryRows.find((r) => r.nodeId === node.nodeId);
+      if (matchedRow) {
+        handleSelectNode(matchedRow);
+        toast.success(`Found: ${matchedRow.displayName}`);
+        setScannerOpen(false);
+      } else {
+        // Fallback row if not currently loaded in the page
+        const fallbackRow: InventoryRow = {
+          nodeType: "VARIANT",
+          nodeId: node.nodeId,
+          displayName: node.displayName,
+          categoryPath: node.categoryPath,
+          categoryId: "",
+          productId: node.productId,
+          productVariantId: node.productVariantId,
+          branchId: branchId,
+          branchName: branches.find((b) => b.id === branchId)?.name ?? "Unknown",
+          quantity: node.quantity ?? 0,
+          lowStockThreshold: 0,
+          isLowStock: (node.quantity ?? 0) <= 0,
+        };
+        handleSelectNode(fallbackRow);
+        toast.success(`Found: ${node.displayName}`);
+        setScannerOpen(false);
+      }
+    } catch {
+      toast.error("Network error looking up SKU.");
+    } finally {
+      toast.dismiss(scanToastId);
+    }
+  }, [branchId, inventoryRows, branches]);
 
   const isOnline = useOnlineStatus();
   const [pendingCount, setPendingCount] = useState(0);
@@ -418,25 +478,26 @@ export function LogSaleForm({
       {/* Product Search / Browser */}
       <div className="rounded-3xl border bg-card p-5 shadow-sm space-y-4">
         <Label className="text-sm font-bold text-foreground">Search Item</Label>
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="w-full justify-between rounded-xl h-12 font-normal text-muted-foreground bg-background hover:bg-muted/30"
-              disabled={loadingRows || basket.length >= 20}
-            >
-              {loadingRows ? (
-                <span className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading items…
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Search className="h-4 w-4 text-muted-foreground" /> Search category, product, or variant…
-                </span>
-              )}
-              <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
-            </Button>
-          </PopoverTrigger>
+        <div className="flex gap-2">
+          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between rounded-xl h-12 font-normal text-muted-foreground bg-background hover:bg-muted/30"
+                disabled={loadingRows || basket.length >= 20}
+              >
+                {loadingRows ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading items…
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-muted-foreground" /> Search category, product, or variant…
+                  </span>
+                )}
+                <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
+              </Button>
+            </PopoverTrigger>
           <PopoverContent className="w-[min(90vw,520px)] p-0 rounded-2xl" align="start">
             <Command>
               <CommandInput
@@ -491,7 +552,29 @@ export function LogSaleForm({
             </Command>
           </PopoverContent>
         </Popover>
+        {enableBarcodeScanning && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-xl flex-shrink-0"
+            onClick={() => setScannerOpen(!scannerOpen)}
+            title="Scan Barcode / QR Code"
+            disabled={basket.length >= 20}
+          >
+            <QrCode className="h-5 w-5" />
+          </Button>
+        )}
       </div>
+
+      {enableBarcodeScanning && scannerOpen && (
+        <div className="border rounded-2xl p-4 bg-muted/10 animate-in fade-in duration-200">
+          <BarcodeScanner
+            onScan={handleBarcodeScan}
+            onClose={() => setScannerOpen(false)}
+          />
+        </div>
+      )}
+    </div>
 
       {/* Selected Item Stepper Panel */}
       {selectedNode && (

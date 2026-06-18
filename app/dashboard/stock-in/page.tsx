@@ -43,6 +43,14 @@ export default async function StockInPage({ searchParams }: PageProps) {
     orderBy: { name: "asc" },
   });
 
+  // Fetch store settings for feature flags
+  const settings = await prisma.storeSettings.findFirst({
+    select: {
+      enableBarcodeScanning: true,
+    },
+  });
+  const enableBarcodeScanning = settings?.enableBarcodeScanning ?? false;
+
   // Determine the initial branch scope
   const initialBranchId =
     branchFilter && accessibleBranchIds.includes(branchFilter)
@@ -60,6 +68,7 @@ export default async function StockInPage({ searchParams }: PageProps) {
         branches={branches}
         initialBranchId={initialBranchId}
         initialInventoryRows={initialInventoryRows}
+        enableBarcodeScanning={enableBarcodeScanning}
       />
     </div>
   );

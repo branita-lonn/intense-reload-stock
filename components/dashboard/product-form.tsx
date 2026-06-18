@@ -8,7 +8,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, ArrowLeft, ArrowRight, Save, X } from "lucide-react";
+import { Loader2, Plus, Trash2, ArrowLeft, ArrowRight, Save, X, QrCode } from "lucide-react";
 import type { z } from "zod";
 
 import { productWithVariantsSchema } from "@/lib/validations/product";
@@ -27,6 +27,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImageUpload } from "@/components/dashboard/image-upload";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type FormSchemaType = z.input<typeof productWithVariantsSchema>;
 
@@ -45,6 +51,8 @@ export function ProductForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState(1);
   const [tagInput, setTagInput] = useState("");
+  const [qrDialog, setQrDialog] = useState<{ sku: string; dataUrl: string } | null>(null);
+  const [qrLoadingIdx, setQrLoadingIdx] = useState<number | null>(null);
 
   const isEditMode = !!initialProduct;
 
@@ -617,15 +625,65 @@ export function ProductForm({
                       <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                         Variant #{idx + 1}
                       </span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => remove(idx)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {/* QR label button — only in edit mode when the variant is saved to the DB (field.id exists) */}
+                        {isEditMode && field.id && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            disabled={qrLoadingIdx === idx}
+                            title={watch(`variants.${idx}.sku`) ? "Generate QR label" : "Set a SKU first to generate a QR label"}
+                            onClick={async () => {
+                              if (!watch(`variants.${idx}.sku`)) {
+                                return;
+                              }
+                              setQrLoadingIdx(idx);
+                              try {
+                                const res = await fetch(`/api/dashboard/products/variants/${field.id}/qr`);
+                                const json = (await res.json()) as unknown;
+                                if (!res.ok) {
+                                  const errMsg =
+                                    json !== null &&
+                                    typeof json === "object" &&
+                                    "error" in json &&
+                                    typeof (json as { error: unknown }).error === "string"
+                                      ? (json as { error: string }).error
+                                      : "Failed to generate QR code.";
+                                  toast.error(errMsg);
+                                  return;
+                                }
+                                const data = json as { dataUrl: string };
+                                setQrDialog({
+                                  sku: watch(`variants.${idx}.sku`) ?? "",
+                                  dataUrl: data.dataUrl,
+                                });
+                              } catch (error: unknown) {
+                                console.error("[product-form] QR fetch error:", error);
+                                toast.error("Could not load QR code. Please try again.");
+                              } finally {
+                                setQrLoadingIdx(null);
+                              }
+                            }}
+                          >
+                            {qrLoadingIdx === idx ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <QrCode className="w-4 h-4" />
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => remove(idx)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -740,6 +798,43 @@ export function ProductForm({
             )}
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* QR LABEL DIALOG                                                          */}
+        {/* ========================================================================= */}
+        <Dialog open={!!qrDialog} onOpenChange={(open) => { if (!open) setQrDialog(null); }}>
+          <DialogContent className="max-w-xs text-center" data-print-target="qr-label">
+            {/* Print scope: only the element with data-print-target="qr-label" is visible when printing */}
+            <style>{`
+              @media print {
+                body > *:not([data-print-target="qr-label"]) { display: none !important; }
+                [data-print-target="qr-label"] { display: block !important; }
+              }
+            `}</style>
+            <DialogHeader>
+              <DialogTitle className="text-base">QR Label</DialogTitle>
+            </DialogHeader>
+            {qrDialog && (
+              <div className="flex flex-col items-center gap-3 py-2">
+                <img
+                  src={qrDialog.dataUrl}
+                  alt={`QR code for SKU ${qrDialog.sku}`}
+                  className="w-48 h-48 rounded-lg border border-border"
+                />
+                <p className="text-sm font-mono font-semibold tracking-widest text-foreground">
+                  {qrDialog.sku}
+                </p>
+                <Button
+                  type="button"
+                  className="rounded-xl w-full"
+                  onClick={() => window.print()}
+                >
+                  Print label
+                </Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* ========================================================================= */}
         {/* STEP 4: MEDIA UPLOADS                                                     */}

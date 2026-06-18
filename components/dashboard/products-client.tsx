@@ -37,6 +37,7 @@ import {
   ChevronDown,
   Clock,
   Info,
+  Printer,
 } from "lucide-react";
 
 import type { CategoryWithRelations, ProductWithRelations } from "@/types";
@@ -329,8 +330,21 @@ export function ProductsClient({
           </p>
         </div>
         {hasMutationRights && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <CsvImportDialog branches={branches} onSuccess={fetchProducts} />
+            {/* Print all QR labels for currently listed products */}
+            <Button
+              id="print-all-qr-btn"
+              variant="outline"
+              className="rounded-xl flex items-center gap-1.5"
+              disabled={products.length === 0}
+              onClick={() => {
+                const ids = products.map((p) => p.id).join(",");
+                window.open(`/products/qr-sheet?productIds=${ids}`, "_blank");
+              }}
+            >
+              <Printer className="w-4 h-4" /> Print all labels
+            </Button>
             <Link href="/dashboard/products/new">
               <Button id="add-product-btn" className="rounded-xl flex items-center gap-1.5">
                 <Plus className="w-4 h-4" /> Add product

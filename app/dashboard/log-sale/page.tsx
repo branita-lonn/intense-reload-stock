@@ -28,11 +28,13 @@ export default async function LogSalePage({ searchParams }: LogSalePageProps) {
     select: {
       requireSaleApproval: true,
       enableDetailedSaleBreakdown: true,
+      enableBarcodeScanning: true,
     },
   });
 
   const requireSaleApproval = settings?.requireSaleApproval ?? true;
   const enableDetailedSaleBreakdown = settings?.enableDetailedSaleBreakdown ?? false;
+  const enableBarcodeScanning = settings?.enableBarcodeScanning ?? false;
 
   // Retrieve current user's accessible branches
   const accessibleBranchIds = await getAccessibleBranchIds(session);
@@ -171,6 +173,7 @@ export default async function LogSalePage({ searchParams }: LogSalePageProps) {
       requireSaleApproval={requireSaleApproval}
       enableDetailedSaleBreakdown={enableDetailedSaleBreakdown}
       userRole={session.user.role}
+      enableBarcodeScanning={enableBarcodeScanning}
     />
   );
 }
