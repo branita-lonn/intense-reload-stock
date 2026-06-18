@@ -1,5 +1,8 @@
 // app/setup/page.tsx
 // Server component wrapper for the one-time setup page.
+// force-dynamic: this page hits the database to check first-run state;
+// it must never be statically prerendered at build time.
+export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { isFirstRunSetupAvailable } from "@/lib/first-run";
