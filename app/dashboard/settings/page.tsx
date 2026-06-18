@@ -4,6 +4,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateStoreSettings } from "@/lib/get-store-settings";
 import { SettingsClient } from "@/components/dashboard/settings-client";
 import type { Metadata } from "next";
 
@@ -25,7 +26,7 @@ export default async function SettingsPage() {
   if (currentUser.role !== "OWNER") redirect("/dashboard");
 
   const [settings, branches, pendingSaleCount] = await Promise.all([
-    prisma.storeSettings.findFirst(),
+    getOrCreateStoreSettings(),
     prisma.branch.findMany({
       where: { isActive: true },
       select: {
@@ -38,10 +39,6 @@ export default async function SettingsPage() {
     }),
     prisma.sale.count({ where: { status: "PENDING" } }),
   ]);
-
-  if (!settings) {
-    throw new Error("Store settings not found in database.");
-  }
 
   return (
     <SettingsClient
