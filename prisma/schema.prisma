@@ -206,46 +206,48 @@ model StoreSettings {
 }
 
 model Category {
-  id             String          @id @default(cuid())
+  id             String               @id @default(cuid())
   name           String
-  slug           String          @unique
-  description    String?         @db.Text
+  slug           String               @unique
+  description    String?              @db.Text
   imageUrl       String?
   parentId       String?
-  parent         Category?       @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Restrict)
-  children       Category[]      @relation("CategoryToCategory")
-  isStockBearing Boolean         @default(false)
-  sortOrder      Int             @default(0)
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  products       Product[]
+  parent         Category?            @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Restrict)
+  children       Category[]           @relation("CategoryToCategory")
+  isStockBearing Boolean              @default(false)
+  sortOrder      Int                  @default(0)
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  products         Product[]
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
   stockCountItems  StockCountItem[]
+  breakdownItems   SaleItemBreakdown[]
 }
 
 model Product {
-  id             String           @id @default(cuid())
+  id             String               @id @default(cuid())
   name           String
-  slug           String           @unique
-  description    String?          @db.Text
+  slug           String               @unique
+  description    String?              @db.Text
   brand          String?
   tags           String[]
   images         String[]
   categoryId     String
-  category       Category         @relation(fields: [categoryId], references: [id])
-  isStockBearing Boolean          @default(false)
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  variants       ProductVariant[]
+  category       Category             @relation(fields: [categoryId], references: [id])
+  isStockBearing Boolean              @default(false)
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  variants         ProductVariant[]
   inventoryRecords Inventory[]
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
   stockCountItems  StockCountItem[]
   stockCounts      StockCount[]
+  breakdownItems   SaleItemBreakdown[]
 }
 
 model ProductVariant {
@@ -265,6 +267,7 @@ model ProductVariant {
   stockMovements   StockMovement[]
   saleItems        SaleItem[]
   stockCountItems  StockCountItem[]
+  breakdownItems   SaleItemBreakdown[]
 }
 
 // Polymorphic Inventory model.
@@ -366,19 +369,21 @@ model Sale {
 // No database-level CHECK constraint is available via Prisma; unique indexes on
 // Inventory prevent node+branch duplicates. SaleItem has no such uniqueness need.
 model SaleItem {
-  id               String          @id @default(cuid())
+  id               String               @id @default(cuid())
   saleId           String
-  sale             Sale            @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  sale             Sale                 @relation(fields: [saleId], references: [id], onDelete: Cascade)
   // Polymorphic node reference — exactly one must be set (enforced at app layer).
   categoryId       String?
-  category         Category?       @relation(fields: [categoryId], references: [id])
+  category         Category?            @relation(fields: [categoryId], references: [id])
   productId        String?
-  product          Product?        @relation(fields: [productId], references: [id])
+  product          Product?             @relation(fields: [productId], references: [id])
   productVariantId String?
-  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  productVariant   ProductVariant?      @relation(fields: [productVariantId], references: [id])
   // Positive integer — max 1000 enforced in lib/validations/sale.ts, not here.
   quantity         Int
-  createdAt        DateTime        @default(now())
+  createdAt        DateTime             @default(now())
+  // Stage 15: annotation-only breakdown rows for this line item.
+  breakdownItems   SaleItemBreakdown[]
 }
 
 // Stage 6: In-app notification record for a single recipient.
@@ -455,3 +460,28 @@ model ReceiptSequence {
 
   @@id([branchId, date])
 }
+
+// SaleItemBreakdown — annotation-only model.
+// IMPORTANT: SaleItemBreakdown records are informational only. Inventory.quantity is
+// determined by SaleItem.quantity on the parent stock-bearing node. This breakdown is
+// captured for reporting purposes when the owner wants to track sub-item sales without
+// fully drilling down the inventory tracking to that level.
+// These records do NOT affect Inventory — they are metadata attached to a SaleItem.
+// Feature-gated behind StoreSettings.enableDetailedSaleBreakdown (Stage 15).
+model SaleItemBreakdown {
+  id               String          @id @default(cuid())
+  saleItemId       String
+  saleItem         SaleItem        @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  // Polymorphic child node reference — exactly one must be set (enforced at app layer).
+  categoryId       String?
+  category         Category?       @relation(fields: [categoryId], references: [id])
+  productId        String?
+  product          Product?        @relation(fields: [productId], references: [id])
+  productVariantId String?
+  productVariant   ProductVariant? @relation(fields: [productVariantId], references: [id])
+  // The quantity of this sub-item in the parent sale item.
+  // The sum of all breakdown quantities must equal the parent SaleItem.quantity.
+  quantity         Int
+  createdAt        DateTime        @default(now())
+}
+

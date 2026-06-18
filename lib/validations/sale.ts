@@ -5,6 +5,38 @@ import { z } from "zod";
 import { assertExactlyOneStockParent } from "./inventory";
 
 /**
+ * Schema for a single child-item in a Stage 15 sale breakdown.
+ * Polymorphic — exactly one of categoryId/productId/productVariantId must be set.
+ * Breakdown items are annotation-only: they do NOT affect Inventory.
+ */
+export const breakdownItemSchema = z
+  .object({
+    categoryId: z.string().nullable().optional(),
+    productId: z.string().nullable().optional(),
+    productVariantId: z.string().nullable().optional(),
+    quantity: z
+      .number()
+      .int("Breakdown quantity must be a whole number.")
+      .positive("Breakdown quantity must be at least 1."),
+  })
+  .superRefine((data, ctx) => {
+    try {
+      assertExactlyOneStockParent(data);
+    } catch (err: unknown) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          err instanceof Error
+            ? err.message
+            : "Each breakdown item must target exactly one node: Category, Product, or Variant.",
+        path: ["categoryId"],
+      });
+    }
+  });
+
+export type BreakdownItem = z.infer<typeof breakdownItemSchema>;
+
+/**
  * Schema for a single line item in a sale submission.
  *
  * Polymorphic node reference: exactly one of categoryId, productId, or
@@ -17,6 +49,9 @@ import { assertExactlyOneStockParent } from "./inventory";
  * abuse (e.g. a buggy or compromised client submitting runaway quantities),
  * not to constrain legitimate use. The limit is surfaced as a friendly inline
  * validation message — it is NOT a silent cap.
+ *
+ * Stage 15: Optional `breakdown` array (annotation-only). When provided, the
+ * sum of breakdown quantities must equal the parent item quantity (.refine).
  */
 export const saleItemInputSchema = z
   .object({
@@ -31,6 +66,8 @@ export const saleItemInputSchema = z
         1000,
         "Quantity cannot exceed 1,000 units per item. Please double-check your entry."
       ),
+    // Stage 15: annotation-only breakdown. Only valid for category-level nodes.
+    breakdown: z.array(breakdownItemSchema).optional().nullable(),
   })
   .superRefine((data, ctx) => {
     try {
@@ -44,6 +81,18 @@ export const saleItemInputSchema = z
             : "Each sale item must target exactly one stock level: Category, Product, or Variant.",
         path: ["categoryId"],
       });
+    }
+
+    // Validate breakdown sum equals parent quantity when breakdown is provided.
+    if (data.breakdown && data.breakdown.length > 0) {
+      const breakdownTotal = data.breakdown.reduce((sum, b) => sum + b.quantity, 0);
+      if (breakdownTotal !== data.quantity) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Breakdown quantities must sum to the parent quantity (${data.quantity}). Got ${breakdownTotal}.`,
+          path: ["breakdown"],
+        });
+      }
     }
   });
 

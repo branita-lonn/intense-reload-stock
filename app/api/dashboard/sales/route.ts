@@ -8,7 +8,7 @@ import { handleApiError, ValidationError, NotFoundError, RateLimitError } from "
 import { logSaleWithPosSchema } from "@/lib/validations/pos";
 import { checkSalesRateLimit } from "@/lib/rate-limit";
 import { resolveNodeDisplayName } from "@/lib/inventory-queries";
-import { getEffectiveApprovalSetting, getEffectivePosSetting } from "@/lib/sale-settings";
+import { getEffectiveApprovalSetting, getEffectivePosSetting, getEffectiveBreakdownSetting } from "@/lib/sale-settings";
 import { prisma } from "@/lib/prisma";
 import { SaleStatus, PaymentMethod } from "@prisma/client";
 
@@ -156,9 +156,10 @@ export async function POST(request: Request): Promise<Response> {
     // 3. Enforce branch access check
     await requireBranchAccess(session.user.id, branchId);
 
-    // 4. Determine settings (requireApproval and enablePOS)
+    // 4. Determine settings (requireApproval, enablePOS, enableBreakdown)
     const requireApproval = await getEffectiveApprovalSetting(branchId);
     const enablePOS = await getEffectivePosSetting(branchId);
+    const enableBreakdown = await getEffectiveBreakdownSetting(branchId);
 
     // 5. Execute transactional updates
     const result = await prisma.$transaction(async (tx) => {
@@ -263,6 +264,22 @@ export async function POST(request: Request): Promise<Response> {
             quantity: update.item.quantity,
           },
         });
+
+        // Stage 15: persist annotation-only breakdown rows when the feature is enabled
+        // and breakdown was provided for this item. These rows do NOT affect Inventory.
+        if (enableBreakdown && update.item.breakdown && update.item.breakdown.length > 0) {
+          for (const bd of update.item.breakdown) {
+            await tx.saleItemBreakdown.create({
+              data: {
+                saleItemId: saleItem.id,
+                categoryId: bd.categoryId ?? null,
+                productId: bd.productId ?? null,
+                productVariantId: bd.productVariantId ?? null,
+                quantity: bd.quantity,
+              },
+            });
+          }
+        }
 
         await tx.stockMovement.create({
           data: {

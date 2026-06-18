@@ -40,3 +40,18 @@ export async function getEffectivePosSetting(branchId: string): Promise<boolean>
 
   return settings?.enablePOS ?? false;
 }
+
+/**
+ * Helper to determine the effective Detailed Sale Breakdown setting.
+ * Reads directly from global StoreSettings.enableDetailedSaleBreakdown.
+ * Breakdown items are annotation-only and do NOT affect Inventory.
+ *
+ * @param _branchId - Reserved for future branch-level overrides.
+ */
+export async function getEffectiveBreakdownSetting(_branchId: string): Promise<boolean> {
+  const settings = await prisma.storeSettings.findFirst({
+    select: { enableDetailedSaleBreakdown: true },
+  });
+
+  return settings?.enableDetailedSaleBreakdown ?? false;
+}

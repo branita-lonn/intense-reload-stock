@@ -30,8 +30,10 @@ import {
   History,
   ShoppingCart,
   ChevronDown,
+  ChevronUp,
   AlertTriangle,
   QrCode,
+  ListTree,
 } from "lucide-react";
 import type { UserRole } from "@prisma/client";
 import { BarcodeScanner } from "./barcode-scanner";
@@ -78,10 +80,18 @@ interface LogSaleFormProps {
   enablePOS: boolean;
 }
 
+interface BreakdownChild {
+  nodeType: "CATEGORY" | "PRODUCT";
+  nodeId: string;
+  displayName: string;
+  qty: number;
+}
+
 interface BasketItem {
   key: string;
   row: InventoryRow;
   quantity: number;
+  breakdown?: BreakdownChild[];
 }
 
 export function LogSaleForm({
@@ -116,6 +126,28 @@ export function LogSaleForm({
   // Selected item (being configured in stepper before adding to basket)
   const [selectedNode, setSelectedNode] = useState<InventoryRow | null>(null);
   const [selectedQuantity, setSelectedQuantity] = useState<number>(1);
+
+  // Stage 15: breakdown state for the currently-selected category node
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [breakdownChildren, setBreakdownChildren] = useState<BreakdownChild[]>([]);
+  const [loadingChildren, setLoadingChildren] = useState(false);
+
+  // Fetch one-level-deep child nodes (sub-categories + products) for a category node
+  const fetchCategoryChildren = useCallback(async (categoryId: string) => {
+    setLoadingChildren(true);
+    setBreakdownChildren([]);
+    try {
+      const res = await fetch(`/api/dashboard/categories/${categoryId}/children?branchId=${branchId}`);
+      if (res.ok) {
+        const data = (await res.json()) as { children: BreakdownChild[] };
+        setBreakdownChildren(data.children.map((c) => ({ ...c, qty: 0 })));
+      }
+    } catch {
+      // silently swallow — breakdown is opt-in
+    } finally {
+      setLoadingChildren(false);
+    }
+  }, [branchId]);
 
   const handleBarcodeScan = useCallback(async (sku: string) => {
     const scanToastId = toast.loading(`Searching SKU: ${sku}...`);
@@ -310,6 +342,9 @@ export function LogSaleForm({
     setSelectedQuantity(1);
     setPickerOpen(false);
     setSearchQuery("");
+    // Reset any previous breakdown
+    setBreakdownOpen(false);
+    setBreakdownChildren([]);
   }
 
   // Add currently selected node to the basket
@@ -321,17 +356,29 @@ export function LogSaleForm({
       return;
     }
 
+    // Snapshot breakdown — only include items where user actually set qty > 0
+    const activeBreakdown =
+      enableDetailedSaleBreakdown &&
+      selectedNode.nodeType === "CATEGORY" &&
+      breakdownOpen &&
+      breakdownChildren.some((c) => c.qty > 0)
+        ? breakdownChildren.filter((c) => c.qty > 0)
+        : undefined;
+
     setBasket((prev) => [
       ...prev,
       {
         key: `${selectedNode.nodeId}-${Date.now()}`,
         row: selectedNode,
         quantity: selectedQuantity,
+        breakdown: activeBreakdown,
       },
     ]);
 
     setSelectedNode(null);
     setSelectedQuantity(1);
+    setBreakdownOpen(false);
+    setBreakdownChildren([]);
     toast.success("Added to sale basket.");
   }
 
@@ -395,6 +442,15 @@ export function LogSaleForm({
         productId: item.row.nodeType === "PRODUCT" ? item.row.nodeId : undefined,
         productVariantId: item.row.nodeType === "VARIANT" ? item.row.nodeId : undefined,
         quantity: item.quantity,
+        // Stage 15: include annotation-only breakdown when present
+        breakdown:
+          enableDetailedSaleBreakdown && item.breakdown && item.breakdown.length > 0
+            ? item.breakdown.map((bd) => ({
+                categoryId: bd.nodeType === "CATEGORY" ? bd.nodeId : undefined,
+                productId: bd.nodeType === "PRODUCT" ? bd.nodeId : undefined,
+                quantity: bd.qty,
+              }))
+            : undefined,
       })),
       posDetails: enablePOS
         ? {
@@ -675,9 +731,106 @@ export function LogSaleForm({
             </Button>
           </div>
 
-          {/* Stage 15 detailed breakdown UI hook point */}
           {/* Stage 15: detailed breakdown UI */}
+          {enableDetailedSaleBreakdown && selectedNode?.nodeType === "CATEGORY" && (
+            <div className="space-y-3 rounded-2xl border bg-muted/10 p-4">
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !breakdownOpen;
+                  setBreakdownOpen(next);
+                  if (next && breakdownChildren.length === 0 && selectedNode.categoryId) {
+                    fetchCategoryChildren(selectedNode.categoryId);
+                  }
+                }}
+                className="flex w-full items-center justify-between text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <ListTree className="h-3.5 w-3.5" />
+                  Break down by item (optional)
+                </span>
+                {breakdownOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
 
+              {breakdownOpen && (
+                <div className="space-y-2 animate-in fade-in duration-200">
+                  <p className="text-[10px] text-muted-foreground">
+                    Specify how many of each sub-item sold. Total must equal {selectedQuantity} unit{selectedQuantity !== 1 ? "s" : ""}.
+                    This breakdown is for reporting only — it does not affect stock counts independently.
+                  </p>
+
+                  {loadingChildren ? (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading sub-items…
+                    </div>
+                  ) : breakdownChildren.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No sub-items found for this category.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {breakdownChildren.map((child, idx) => (
+                        <div key={child.nodeId} className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-medium text-foreground flex-1 truncate">{child.displayName}</span>
+                          <div className="flex items-center border rounded-lg bg-background flex-shrink-0">
+                            <button
+                              type="button"
+                              className="flex items-center justify-center min-h-[36px] min-w-[36px] px-1.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                              onClick={() => setBreakdownChildren((prev) => prev.map((c, i) => i === idx ? { ...c, qty: Math.max(0, c.qty - 1) } : c))}
+                              disabled={child.qty <= 0}
+                              aria-label={`Decrease ${child.displayName}`}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="px-2 font-mono text-sm font-bold text-foreground min-w-[2rem] text-center">
+                              {child.qty}
+                            </span>
+                            <button
+                              type="button"
+                              className="flex items-center justify-center min-h-[36px] min-w-[36px] px-1.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                              onClick={() => setBreakdownChildren((prev) => prev.map((c, i) => i === idx ? { ...c, qty: c.qty + 1 } : c))}
+                              aria-label={`Increase ${child.displayName}`}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Running total indicator */}
+                      {(() => {
+                        const specified = breakdownChildren.reduce((s, c) => s + c.qty, 0);
+                        const remaining = selectedQuantity - specified;
+                        return (
+                          <div className={`text-[11px] font-semibold pt-1 ${
+                            specified === selectedQuantity
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : remaining < 0
+                              ? "text-destructive"
+                              : "text-muted-foreground"
+                          }`}>
+                            {specified} of {selectedQuantity} specified
+                            {specified === selectedQuantity && " ✓"}
+                            {remaining < 0 && ` — ${Math.abs(remaining)} over`}
+                            {remaining > 0 && ` — ${remaining} unspecified`}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBreakdownOpen(false);
+                      setBreakdownChildren([]);
+                    }}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                  >
+                    Skip breakdown
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -717,6 +870,12 @@ export function LogSaleForm({
                   {item.quantity > item.row.quantity && (
                     <p className="text-[10px] text-amber-500 font-medium flex items-center gap-1 mt-0.5">
                       <AlertTriangle className="h-3 w-3" /> Overselling by {item.quantity - item.row.quantity} units
+                    </p>
+                  )}
+                  {enableDetailedSaleBreakdown && item.breakdown && item.breakdown.length > 0 && (
+                    <p className="text-[10px] text-primary/70 font-medium flex items-center gap-1 mt-0.5">
+                      <ListTree className="h-3 w-3" />
+                      Breakdown: {item.breakdown.map((b) => `${b.qty}× ${b.displayName}`).join(", ")}
                     </p>
                   )}
                 </div>
