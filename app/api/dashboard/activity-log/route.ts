@@ -19,6 +19,9 @@ export async function GET(request: NextRequest): Promise<Response> {
     const dateFromParam = searchParams.get("dateFrom") || undefined;
     const dateToParam = searchParams.get("dateTo") || undefined;
     const searchParam = searchParams.get("search") || undefined;
+    const categoryIdParam = searchParams.get("categoryId") || undefined;
+    const productIdParam = searchParams.get("productId") || undefined;
+    const productVariantIdParam = searchParams.get("productVariantId") || undefined;
     const pageParam = searchParams.get("page") || "1";
     const pageSizeParam = searchParams.get("pageSize") || "25";
 
@@ -87,6 +90,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       dateFrom,
       dateTo,
       search: searchParam,
+      categoryId: categoryIdParam,
+      productId: productIdParam,
+      productVariantId: productVariantIdParam,
       page,
       pageSize,
     });

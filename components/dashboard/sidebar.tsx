@@ -195,6 +195,13 @@ const ALL_NAV_GROUPS: NavGroup[] = [
         roles: ["OWNER", "BRANCH_MANAGER"],
       },
       {
+        href: "/dashboard/staff-activity",
+        label: "Staff Activity",
+        icon: Users,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER"],
+      },
+      {
         href: "/dashboard/settings",
         label: "Settings",
         icon: Settings,

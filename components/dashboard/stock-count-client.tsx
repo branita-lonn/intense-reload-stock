@@ -17,6 +17,8 @@ import {
   TrendingDown,
   TrendingUp,
   Percent,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +71,125 @@ interface StockCountClientProps {
   migrationBannerText: string | null;
   userRole: string;
   currentUserId: string;
+}
+
+interface RecentActivitySectionProps {
+  branchId: string;
+  categoryId: string | null;
+  productId: string | null;
+  productVariantId: string | null;
+  startedAt: string | Date;
+}
+
+function RecentActivitySection({
+  branchId,
+  categoryId,
+  productId,
+  productVariantId,
+  startedAt,
+}: RecentActivitySectionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+
+  const fetchActivity = async () => {
+    setLoading(true);
+    try {
+      const startedAtDate = new Date(startedAt);
+      // Fetch activity in the 14 days prior to startedAt
+      const fromDate = new Date(startedAtDate.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString();
+      const toDate = startedAtDate.toISOString();
+
+      const params = new URLSearchParams();
+      params.set("branchId", branchId);
+      params.set("type", "SALE");
+      if (categoryId) params.set("categoryId", categoryId);
+      if (productId) params.set("productId", productId);
+      if (productVariantId) params.set("productVariantId", productVariantId);
+      params.set("dateFrom", fromDate);
+      params.set("dateTo", toDate);
+
+      const res = await fetch(`/api/dashboard/activity-log?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setActivities(data.entries || []);
+      } else {
+        toast.error("Failed to load recent activity.");
+      }
+    } catch {
+      toast.error("Network error loading activity.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activities.length === 0) {
+      fetchActivity();
+    }
+  }, [isOpen]);
+
+  return (
+    <div className="mt-2.5 pt-2 border-t border-dashed">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1 text-xs text-primary font-semibold hover:underline"
+      >
+        {isOpen ? (
+          <>
+            <ChevronUp className="w-3.5 h-3.5" />
+            Hide recent activity for this item
+          </>
+        ) : (
+          <>
+            <ChevronDown className="w-3.5 h-3.5" />
+            Show recent activity for this item
+          </>
+        )}
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 space-y-2 bg-muted/30 rounded-xl p-3 border text-left">
+          <p className="text-[10px] text-muted-foreground italic">
+            This shows recent activity for this item — it doesn't necessarily explain the variance, but may help you investigate.
+          </p>
+
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              Loading history...
+            </div>
+          ) : activities.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">
+              No recent sale activity found for this item in the 14 days prior to this count.
+            </p>
+          ) : (
+            <div className="space-y-1.5 pt-1">
+              {activities.map((act: any) => {
+                const actDate = new Date(act.createdAt).toLocaleString(undefined, {
+                  dateStyle: "short",
+                  timeStyle: "short",
+                });
+                return (
+                  <div key={act.id} className="text-[11px] flex justify-between items-center bg-card p-2 rounded-lg border border-border/40 gap-2">
+                    <span className="font-medium text-foreground">
+                      {actDate} — Sale delta: <span className="font-bold text-destructive">{act.quantityDelta}</span> (by {act.performedByName})
+                    </span>
+                    <button
+                      onClick={() => window.location.href = `/dashboard/sales`}
+                      className="text-[10px] text-primary hover:underline font-semibold flex-shrink-0"
+                    >
+                      View Sale
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function StockCountClient({
@@ -617,6 +738,15 @@ export function StockCountClient({
                             {item.productId && <span>Product Point</span>}
                             {item.productVariantId && <span>Variant Level</span>}
                           </div>
+                          {isCompleted && item.variance !== null && item.variance !== 0 && (
+                            <RecentActivitySection
+                              branchId={stockCount.branchId}
+                              categoryId={item.categoryId}
+                              productId={item.productId}
+                              productVariantId={item.productVariantId}
+                              startedAt={stockCount.startedAt}
+                            />
+                          )}
                         </div>
                       </TableCell>
 

@@ -29,10 +29,25 @@ export async function getMovementLog(params: {
   dateFrom?: Date;
   dateTo?: Date;
   search?: string;
+  categoryId?: string;
+  productId?: string;
+  productVariantId?: string;
   page: number;
   pageSize: number;
 }): Promise<{ entries: MovementLogEntry[]; totalCount: number }> {
-  const { branchIds, type, performedById, dateFrom, dateTo, search, page, pageSize } = params;
+  const {
+    branchIds,
+    type,
+    performedById,
+    dateFrom,
+    dateTo,
+    search,
+    categoryId,
+    productId,
+    productVariantId,
+    page,
+    pageSize,
+  } = params;
 
   // Build filters
   const whereClause: any = {
@@ -45,6 +60,18 @@ export async function getMovementLog(params: {
 
   if (performedById) {
     whereClause.performedById = performedById;
+  }
+
+  if (categoryId) {
+    whereClause.categoryId = categoryId;
+  }
+
+  if (productId) {
+    whereClause.productId = productId;
+  }
+
+  if (productVariantId) {
+    whereClause.productVariantId = productVariantId;
   }
 
   if (dateFrom || dateTo) {
