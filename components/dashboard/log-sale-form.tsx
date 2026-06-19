@@ -585,7 +585,7 @@ export function LogSaleForm({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-between rounded-xl h-12 font-normal text-muted-foreground bg-background hover:bg-muted/30"
+                className="w-3/4 justify-between rounded-xl h-12 font-normal text-muted-foreground bg-background hover:bg-muted/30"
                 disabled={loadingRows || basket.length >= 20}
               >
                 {loadingRows ? (
@@ -658,7 +658,7 @@ export function LogSaleForm({
           <Button
             variant="outline"
             size="icon"
-            className="h-12 w-12 rounded-xl flex-shrink-0"
+            className="h-12 w-1/4 rounded-xl flex-shrink-0"
             onClick={() => setScannerOpen(!scannerOpen)}
             title="Scan Barcode / QR Code"
             disabled={basket.length >= 20}

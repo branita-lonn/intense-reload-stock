@@ -8,6 +8,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { generateQrDataUrl } from "@/lib/qr-code";
+import { PrintButton } from "./print-button";
 
 export const metadata: Metadata = {
   title: "QR Label Sheet | Intense Reload",
@@ -194,11 +195,7 @@ export default async function QrSheetPage({ searchParams }: QrSheetPageProps) {
           <div className="sheet-title">QR Label Sheet — Intense Reload</div>
           <div className="sheet-meta">{labels.length} label{labels.length !== 1 ? "s" : ""}</div>
         </div>
-        {/* eslint-disable-next-line react/no-unknown-property */}
-      <button className="print-btn" onClick={() => {}} suppressHydrationWarning>
-          Print all labels
-        </button>
-        <script dangerouslySetInnerHTML={{ __html: "document.querySelector('.print-btn').addEventListener('click', function(){ window.print(); });" }} />
+        <PrintButton />
       </div>
 
       <div className="label-grid">

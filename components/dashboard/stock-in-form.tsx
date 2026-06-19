@@ -5,8 +5,8 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import {
   Plus,
@@ -56,7 +56,7 @@ interface StockInFormProps {
 interface BatchItem {
   key: string; // unique key for react list rendering
   row: InventoryRow;
-  quantityAdded: number;
+  quantityAdded: number | "";
   note: string;
 }
 
@@ -67,6 +67,7 @@ export function StockInForm({
   enableBarcodeScanning,
 }: StockInFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [branchId, setBranchId] = useState(initialBranchId ?? branches[0]?.id ?? "");
   const [inventoryRows, setInventoryRows] = useState<InventoryRow[]>(initialInventoryRows);
@@ -76,6 +77,34 @@ export function StockInForm({
   const [nodeSearch, setNodeSearch] = useState("");
   const [nodePickerOpen, setNodePickerOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Pre-fill item from search params if present
+  useEffect(() => {
+    const pNodeType = searchParams.get("nodeType");
+    const pNodeId = searchParams.get("nodeId");
+
+    if (pNodeType && pNodeId && inventoryRows.length > 0) {
+      const match = inventoryRows.find(
+        (r) => r.nodeType === pNodeType && r.nodeId === pNodeId
+      );
+      if (match) {
+        setBatchItems((prev) => {
+          if (prev.some((item) => item.row.nodeId === pNodeId && item.row.nodeType === pNodeType)) {
+            return prev;
+          }
+          return [
+            ...prev,
+            {
+              key: `${match.nodeId}-${match.branchId}-${Date.now()}`,
+              row: match,
+              quantityAdded: 1,
+              note: "",
+            },
+          ];
+        });
+      }
+    }
+  }, [searchParams, inventoryRows]);
 
   const branchName = branches.find((b) => b.id === branchId)?.name ?? "Unknown Branch";
 
@@ -209,7 +238,10 @@ export function StockInForm({
       return;
     }
 
-    const hasInvalidQty = batchItems.some((bi) => bi.quantityAdded <= 0 || !Number.isInteger(bi.quantityAdded));
+    const hasInvalidQty = batchItems.some((bi) => {
+      if (bi.quantityAdded === "") return true;
+      return bi.quantityAdded <= 0 || !Number.isInteger(bi.quantityAdded);
+    });
     if (hasInvalidQty) {
       toast.error("All quantities must be positive whole numbers.");
       return;
@@ -257,7 +289,10 @@ export function StockInForm({
     }
   }
 
-  const totalUnitsAdded = batchItems.reduce((sum, bi) => sum + bi.quantityAdded, 0);
+  const totalUnitsAdded = batchItems.reduce(
+    (sum, bi) => sum + (typeof bi.quantityAdded === "number" ? bi.quantityAdded : 0),
+    0
+  );
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -314,7 +349,7 @@ export function StockInForm({
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="w-full justify-between rounded-xl h-11 font-normal text-muted-foreground"
+                className="w-3/4 justify-between rounded-xl h-11 font-normal text-muted-foreground"
                 disabled={loadingRows || batchItems.length >= 50}
               >
                 {loadingRows ? (
@@ -329,82 +364,82 @@ export function StockInForm({
                 <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
               </Button>
             </PopoverTrigger>
-          <PopoverContent className="w-[min(90vw,520px)] p-0 rounded-2xl" align="start">
-            <Command>
-              <CommandInput
-                placeholder="Search by name or category…"
-                value={nodeSearch}
-                onValueChange={setNodeSearch}
-              />
-              <CommandList className="max-h-72">
-                <CommandEmpty>No stock-bearing items found for this branch.</CommandEmpty>
-                <CommandGroup>
-                  {filteredRows.map((row) => (
-                    <CommandItem
-                      key={`${row.nodeId}-${row.branchId}`}
-                      value={`${row.displayName} ${row.categoryPath}`}
-                      onSelect={() => addBatchItem(row)}
-                      className="cursor-pointer rounded-lg"
-                    >
-                      <div className="flex items-start gap-3 w-full py-0.5">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-foreground text-sm truncate">
-                            {row.displayName}
+            <PopoverContent className="w-[min(90vw,520px)] p-0 rounded-2xl" align="start">
+              <Command>
+                <CommandInput
+                  placeholder="Search by name or category…"
+                  value={nodeSearch}
+                  onValueChange={setNodeSearch}
+                />
+                <CommandList className="max-h-72">
+                  <CommandEmpty>No stock-bearing items found for this branch.</CommandEmpty>
+                  <CommandGroup>
+                    {filteredRows.map((row) => (
+                      <CommandItem
+                        key={`${row.nodeId}-${row.branchId}`}
+                        value={`${row.displayName} ${row.categoryPath}`}
+                        onSelect={() => addBatchItem(row)}
+                        className="cursor-pointer rounded-lg"
+                      >
+                        <div className="flex items-start gap-3 w-full py-0.5">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-foreground text-sm truncate">
+                              {row.displayName}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {row.categoryPath}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {row.categoryPath}
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            <span className="text-xs font-mono text-muted-foreground">
+                              {row.quantity} units
+                            </span>
+                            {row.nodeType === "CATEGORY" && (
+                              <Badge className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20 shadow-none py-0 px-1.5">
+                                Cat
+                              </Badge>
+                            )}
+                            {row.nodeType === "PRODUCT" && (
+                              <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-none py-0 px-1.5">
+                                Prod
+                              </Badge>
+                            )}
+                            {row.nodeType === "VARIANT" && (
+                              <Badge className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shadow-none py-0 px-1.5">
+                                Var
+                              </Badge>
+                            )}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 flex items-center gap-2">
-                          <span className="text-xs font-mono text-muted-foreground">
-                            {row.quantity} units
-                          </span>
-                          {row.nodeType === "CATEGORY" && (
-                            <Badge className="text-[10px] bg-purple-500/10 text-purple-600 border-purple-500/20 shadow-none py-0 px-1.5">
-                              Cat
-                            </Badge>
-                          )}
-                          {row.nodeType === "PRODUCT" && (
-                            <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-none py-0 px-1.5">
-                              Prod
-                            </Badge>
-                          )}
-                          {row.nodeType === "VARIANT" && (
-                            <Badge className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20 shadow-none py-0 px-1.5">
-                              Var
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
-        {enableBarcodeScanning && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-11 w-11 rounded-xl flex-shrink-0"
-            onClick={() => setScannerOpen(!scannerOpen)}
-            title="Scan Barcode / QR Code"
-            disabled={batchItems.length >= 50}
-          >
-            <QrCode className="h-5 w-5" />
-          </Button>
-        )}
-      </div>
-
-      {enableBarcodeScanning && scannerOpen && (
-        <div className="border rounded-2xl p-4 bg-muted/10 animate-in fade-in duration-200">
-          <BarcodeScanner
-            onScan={handleBarcodeScan}
-            onClose={() => setScannerOpen(false)}
-          />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          {enableBarcodeScanning && (
+            <Button
+              variant="outline"
+              size="icon"
+              className="w-1/4 h-11 rounded-xl flex-shrink-0"
+              onClick={() => setScannerOpen(!scannerOpen)}
+              title="Scan Barcode / QR Code"
+              disabled={batchItems.length >= 50}
+            >
+              <QrCode className="h-5 w-5" />
+            </Button>
+          )}
         </div>
-      )}
+
+        {enableBarcodeScanning && scannerOpen && (
+          <div className="border rounded-2xl p-4 bg-muted/10 animate-in fade-in duration-200">
+            <BarcodeScanner
+              onScan={handleBarcodeScan}
+              onClose={() => setScannerOpen(false)}
+            />
+          </div>
+        )}
 
         {/* Batch item list */}
         {batchItems.length > 0 && (
@@ -449,16 +484,22 @@ export function StockInForm({
                       min={1}
                       max={100000}
                       value={bi.quantityAdded}
-                      onChange={(e) =>
-                        updateBatchItem(bi.key, "quantityAdded", Math.max(1, parseInt(e.target.value) || 1))
-                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === "") {
+                          updateBatchItem(bi.key, "quantityAdded", "");
+                        } else {
+                          const parsed = parseInt(val, 10);
+                          updateBatchItem(bi.key, "quantityAdded", isNaN(parsed) ? "" : parsed);
+                        }
+                      }}
                       className="rounded-xl h-11 font-mono font-bold"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold text-muted-foreground">New total</Label>
                     <div className="h-11 flex items-center px-3 rounded-xl border bg-emerald-500/10 font-mono text-sm font-extrabold text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                      {bi.row.quantity + bi.quantityAdded}
+                      {bi.row.quantity + (typeof bi.quantityAdded === "number" ? bi.quantityAdded : 0)}
                     </div>
                   </div>
                 </div>

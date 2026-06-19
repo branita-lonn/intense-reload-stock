@@ -165,7 +165,8 @@ export function InventoryClient({
     <TooltipProvider>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4">
+          {/* Header Section */}
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
               Inventory Dashboard
@@ -175,59 +176,115 @@ export function InventoryClient({
             </p>
           </div>
 
-          {/* Branch Switcher */}
-          <div className="flex items-center gap-2">
-            {isOwner || branches.length > 1 ? (
-              <Select value={branchId} onValueChange={setBranchId}>
-                <SelectTrigger className="w-[220px] rounded-xl shadow-sm">
-                  <Filter className="w-4 h-4 text-muted-foreground mr-1.5" />
-                  <SelectValue placeholder="All Branches" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Branches</SelectItem>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="bg-card border px-4 py-2 rounded-xl text-sm font-semibold text-foreground shadow-sm">
-                Branch: {branches[0]?.name || "N/A"}
+          {/* Filters and Control Bar (Sticky on Scroll) */}
+          <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-border/40">
+            {/* Grid for Mobil, Flex for Desktop */}
+            <div className="grid grid-cols-10 gap-3 md:flex md:flex-row md:items-center md:justify-between w-full">
+
+              {/* Branch Switcher*/}
+              <div className="col-span-5 md:w-auto">
+                {isOwner || branches.length > 1 ? (
+                  <Select value={branchId} onValueChange={setBranchId}>
+                    <SelectTrigger className="w-full sm:w-[220px] rounded-xl shadow-sm h-11">
+                      <Filter className="w-4 h-4 text-muted-foreground mr-1.5 shrink-0" />
+                      <SelectValue placeholder="All Branches" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Branches</SelectItem>
+                      {branches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="bg-card border px-4 py-2 flex items-center rounded-xl text-sm font-semibold text-foreground shadow-sm h-11 w-full sm:w-auto overflow-hidden whitespace-nowrap text-ellipsis">
+                    Branch: {branches[0]?.name || "N/A"}
+                  </div>
+                )}
               </div>
-            )}
+
+              {/*category Filter */}
+              <div className="col-span-5 md:w-auto">
+                <Select value={categoryId} onValueChange={setCategoryId}>
+                  <SelectTrigger className="w-full sm:w-[240px] rounded-xl shadow-sm h-11">
+                    <FolderTree className="w-4 h-4 text-muted-foreground mr-1.5 shrink-0" />
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {categoryOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {Array(opt.depth).fill("—").join(" ")} {opt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+
+
+              {/*Search Input (Mobile: Bottom Left, 6/10 width) */}
+              <div className="col-span-6 md:flex-1 relative">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground shrink-0" />
+                <Input
+                  placeholder="Search stock by name or category path..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10 rounded-xl shadow-sm h-11 w-full"
+                />
+              </div>
+
+              {/*Low Stock Toggle (Mobile: Bottom Right, 4/10 width) */}
+              <div className="col-span-4 md:w-auto flex md:flex-row items-center justify-center gap-1 md:gap-3.5 bg-card/50 border px-1 py-1.5 md:py-2.5 md:px-4 rounded-xl shadow-sm h-11 overflow-hidden">
+                <Switch
+                  id="low-stock-switch"
+                  checked={lowStockOnly}
+                  onCheckedChange={setLowStockOnly}
+                  className="scale-75 md:scale-100 m-0"
+                />
+                <Label
+                  htmlFor="low-stock-switch"
+                  className="text-sm font-semibold cursor-pointer text-foreground text-center whitespace-nowrap overflow-hidden text-ellipsis w-full"
+                >
+                  {/* Shorter text on mobile*/}
+                  <span className="md:hidden">Low Stock</span>
+                  <span className="hidden md:inline">Low Stock Only</span>
+                </Label>
+              </div>
+
+            </div>
           </div>
         </div>
-
         {/* Stats Cards Section */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           {/* Total Stock Units */}
-          <div className="rounded-3xl border bg-card p-6 shadow-sm flex items-center justify-between">
+          <div className="rounded-3xl border bg-card py-4 px-2 sm:p-6 shadow-sm flex items-center justify-between">
             <div className="space-y-1.5">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Total Stock
               </span>
-              <p className="text-3xl font-extrabold text-foreground tracking-tight">
+              <p className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
                 {totalQuantity} <span className="text-xs text-muted-foreground font-normal">units</span>
               </p>
             </div>
-            <div className="p-3.5 bg-emerald-500/10 rounded-2xl text-emerald-600 dark:text-emerald-400">
+            <div className="p-2 sm:p-3.5 bg-emerald-500/10 rounded-2xl text-emerald-600 dark:text-emerald-400">
               <Boxes className="h-6 w-6" />
             </div>
           </div>
 
           {/* Unique Items Count */}
-          <div className="rounded-3xl border bg-card p-6 shadow-sm flex items-center justify-between">
+          <div className="rounded-3xl border bg-card py-4 px-2 sm:p-6 shadow-sm flex items-center justify-between">
             <div className="space-y-1.5">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Monitored Items
+                Items
               </span>
-              <p className="text-3xl font-extrabold text-foreground tracking-tight">
+              <p className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
                 {totalItems}
               </p>
             </div>
-            <div className="p-3.5 bg-blue-500/10 rounded-2xl text-blue-600 dark:text-blue-400">
+            <div className="p-2 sm:p-3.5 bg-blue-500/10 rounded-2xl text-blue-600 dark:text-blue-400">
               <Layers className="h-6 w-6" />
             </div>
           </div>
@@ -235,71 +292,26 @@ export function InventoryClient({
           {/* Low Stock Alerts */}
           <button
             onClick={() => setLowStockOnly((prev) => !prev)}
-            className={`rounded-3xl border p-6 shadow-sm flex items-center justify-between text-left transition-all ${
-              lowStockOnly
-                ? "bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/20"
-                : "bg-card hover:bg-muted/10"
-            }`}
+            className={`rounded-3xl border py-4 px-2 sm:p-6 shadow-sm flex items-center justify-between text-left transition-all ${lowStockOnly
+              ? "bg-amber-500/10 border-amber-500/30 dark:bg-amber-950/20"
+              : "bg-card hover:bg-muted/10"
+              }`}
           >
             <div className="space-y-1.5">
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Low Stock Alerts
+                Low Stock
               </span>
-              <p className="text-3xl font-extrabold text-foreground tracking-tight flex items-baseline gap-1.5">
+              <p className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-baseline gap-1.5">
                 {lowStockCount}
                 {lowStockCount > 0 && (
                   <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
                 )}
               </p>
             </div>
-            <div className="p-3.5 bg-amber-500/10 rounded-2xl text-amber-600 dark:text-amber-400">
+            <div className="p-2 sm:p-3.5 bg-amber-500/10 rounded-2xl text-amber-600 dark:text-amber-400">
               <TrendingDown className="h-6 w-6" />
             </div>
           </button>
-        </div>
-
-        {/* Filters and Control Bar (Sticky on Scroll) */}
-        <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 flex flex-col gap-3 md:flex-row md:items-center justify-between border-b border-border/40">
-          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search stock by name or category path..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 rounded-xl shadow-sm h-11"
-              />
-            </div>
-
-            {/* Category Filter */}
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger className="w-full sm:w-[240px] rounded-xl shadow-sm h-11">
-                <FolderTree className="w-4 h-4 text-muted-foreground mr-1.5" />
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categoryOptions.map((opt) => (
-                  <SelectItem key={opt.id} value={opt.id}>
-                    {Array(opt.depth).fill("—").join(" ")} {opt.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Low Stock Toggle Switch */}
-          <div className="flex items-center gap-3.5 bg-card/50 border px-4 py-2.5 rounded-xl shadow-sm self-start md:self-auto h-11">
-            <Switch
-              id="low-stock-switch"
-              checked={lowStockOnly}
-              onCheckedChange={setLowStockOnly}
-            />
-            <Label htmlFor="low-stock-switch" className="text-sm font-semibold cursor-pointer text-foreground">
-              Low Stock Only
-            </Label>
-          </div>
         </div>
 
         {/* Stock List Display */}
@@ -320,15 +332,15 @@ export function InventoryClient({
         ) : (
           <>
             {/* Desktop Table View (>= md breakpoint) */}
-            <div className="hidden md:block rounded-3xl border bg-card overflow-hidden shadow-sm">
+            <div className=" md:block rounded-3xl border bg-card overflow-hidden shadow-sm">
               <Table>
                 <TableHeader className="bg-muted/30">
                   <TableRow>
                     <TableHead>Item details & Category path</TableHead>
-                    <TableHead>Tracking level</TableHead>
+                    <TableHead className="hidden md:table-cell">Tracking level</TableHead>
                     {showBranchColumn && <TableHead>Branch</TableHead>}
                     <TableHead>Current stock</TableHead>
-                    <TableHead>Low stock threshold</TableHead>
+                    <TableHead className="hidden md:table-cell">Low stock threshold</TableHead>
                     <TableHead className="text-right pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -359,7 +371,7 @@ export function InventoryClient({
                         </TableCell>
 
                         {/* Tracking Level Badge */}
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           {row.nodeType === "PRODUCT" && (
                             <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-semibold shadow-none">
                               Product
@@ -408,7 +420,7 @@ export function InventoryClient({
                         </TableCell>
 
                         {/* Low Stock Threshold */}
-                        <TableCell className="font-mono text-xs text-muted-foreground">
+                        <TableCell className="font-mono text-xs text-muted-foreground hidden md:table-cell">
                           {threshold} units
                         </TableCell>
 
@@ -466,7 +478,8 @@ export function InventoryClient({
             </div>
 
             {/* Mobile View: Collapses to stack cards (< md breakpoint) */}
-            <div className="md:hidden space-y-3.5">
+            {/* hidden for now. mobile still shows the table instead of cards*/}
+            <div className="hidden space-y-3.5"> h
               {rows.map((row) => {
                 const threshold = row.lowStockThreshold;
                 const qty = row.quantity;

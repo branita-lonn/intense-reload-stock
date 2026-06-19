@@ -627,7 +627,7 @@ export function ProductForm({
                       </span>
                       <div className="flex items-center gap-1">
                         {/* QR label button — only in edit mode when the variant is saved to the DB (field.id exists) */}
-                        {isEditMode && field.id && (
+                        {isEditMode && watch(`variants.${idx}.id`) && (
                           <Button
                             type="button"
                             variant="ghost"
@@ -641,7 +641,9 @@ export function ProductForm({
                               }
                               setQrLoadingIdx(idx);
                               try {
-                                const res = await fetch(`/api/dashboard/products/variants/${field.id}/qr`);
+                                const variantDbId = watch(`variants.${idx}.id`) as string | undefined;
+                                if (!variantDbId) return;
+                                const res = await fetch(`/api/dashboard/products/variants/${variantDbId}/qr`);
                                 const json = (await res.json()) as unknown;
                                 if (!res.ok) {
                                   const errMsg =

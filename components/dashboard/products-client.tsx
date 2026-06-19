@@ -172,9 +172,9 @@ export function ProductsClient({
       if (!response.ok) {
         const errorMessage =
           json !== null &&
-          typeof json === "object" &&
-          "error" in json &&
-          typeof (json as { error: unknown }).error === "string"
+            typeof json === "object" &&
+            "error" in json &&
+            typeof (json as { error: unknown }).error === "string"
             ? (json as { error: string }).error
             : "Failed to delete product.";
         toast.error(errorMessage);
@@ -356,21 +356,11 @@ export function ProductsClient({
 
       {/* Filter and Bulk Action bar */}
       <div className="flex flex-col gap-3 md:flex-row md:items-center justify-between">
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          {/* Search bar */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search products by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 rounded-xl"
-            />
-          </div>
+        <div className="grid grid-cols-2 md:flex md:flex-row md:items-center gap-3 w-full">
 
           {/* Category Dropdown */}
           <Select value={categoryId} onValueChange={setCategoryId}>
-            <SelectTrigger className="w-full sm:w-[220px] rounded-xl">
+            <SelectTrigger className="w-full md:w-[220px] rounded-xl">
               <FolderTree className="w-4 h-4 text-muted-foreground mr-1.5" />
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
@@ -386,7 +376,7 @@ export function ProductsClient({
 
           {/* Branch Dropdown */}
           <Select value={branchId} onValueChange={setBranchId}>
-            <SelectTrigger className="w-full sm:w-[200px] rounded-xl">
+            <SelectTrigger className="w-full md:w-[200px] rounded-xl">
               <Filter className="w-4 h-4 text-muted-foreground mr-1.5" />
               <SelectValue placeholder="All Branches" />
             </SelectTrigger>
@@ -399,25 +389,21 @@ export function ProductsClient({
               ))}
             </SelectContent>
           </Select>
-        </div>
 
-        {/* Bulk Actions (Owner only) */}
-        {isOwner && selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            onClick={handleBulkDelete}
-            disabled={isBulkDeleting}
-            className="rounded-xl flex items-center gap-1.5 self-start md:self-auto"
-          >
-            {isBulkDeleting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Trash2 className="w-4 h-4" />
-            )}
-            Delete Selected ({selectedCount})
-          </Button>
-        )}
+          {/* Search bar */}
+          <div className="relative w-full col-span-2 md:col-span-1 md:flex-1">
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search products by name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 rounded-xl w-full"
+            />
+          </div>
+
+        </div>
       </div>
+
 
       {/* Table view */}
       {loading ? (
@@ -468,9 +454,8 @@ export function ProductsClient({
                 return (
                   <TableRow
                     key={product.id}
-                    className={`hover:bg-muted/10 transition-colors ${
-                      product.isActive ? "" : "opacity-60 bg-muted/5"
-                    }`}
+                    className={`hover:bg-muted/10 transition-colors ${product.isActive ? "" : "opacity-60 bg-muted/5"
+                      }`}
                   >
                     {isOwner && (
                       <TableCell className="pl-4">
@@ -537,13 +522,12 @@ export function ProductsClient({
                       {sLevel === "PRODUCT" && (
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`h-2.5 w-2.5 rounded-full ${
-                              aggStock > 10
+                            className={`h-2.5 w-2.5 rounded-full ${aggStock > 10
                                 ? "bg-emerald-500"
                                 : aggStock > 0
-                                ? "bg-amber-500"
-                                : "bg-destructive"
-                            }`}
+                                  ? "bg-amber-500"
+                                  : "bg-destructive"
+                              }`}
                           />
                           <span className="text-sm font-semibold text-foreground">
                             {aggStock} units
