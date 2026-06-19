@@ -120,6 +120,13 @@ const ALL_NAV_GROUPS: NavGroup[] = [
         roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
       },
       {
+        href: "/dashboard/activity-log",
+        label: "Activity Log",
+        icon: FileClock,
+        exact: false,
+        roles: ["OWNER", "BRANCH_MANAGER", "STAFF"],
+      },
+      {
         href: "/dashboard/approvals",
         label: "Approvals",
         icon: ClipboardCheck,
