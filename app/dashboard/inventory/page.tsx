@@ -95,7 +95,7 @@ export default async function InventoryPage({ searchParams }: PageProps) {
   }
 
   return (
-    <div className="rounded-3xl border bg-card/40 p-6 shadow-sm">
+    <div className="bg-card/40 p-0">
       <InventoryClient
         initialCategories={categories}
         branches={branches}

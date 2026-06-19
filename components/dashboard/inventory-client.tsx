@@ -177,7 +177,7 @@ export function InventoryClient({
           </div>
 
           {/* Filters and Control Bar (Sticky on Scroll) */}
-          <div className="sticky top-0 z-20 bg-background/90 backdrop-blur-md pb-4 pt-2 -mx-4 px-4 border-b border-border/40">
+          <div className="pb-4 pt-2 -mx-4 px-4">
             {/* Grid for Mobil, Flex for Desktop */}
             <div className="grid grid-cols-10 gap-3 md:flex md:flex-row md:items-center md:justify-between w-full">
 

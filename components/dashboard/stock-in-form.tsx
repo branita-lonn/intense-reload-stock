@@ -358,7 +358,7 @@ export function StockInForm({
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <Search className="h-4 w-4" /> Search for a stock-bearing item…
+                    <Search className="h-4 w-4" /> Search for items…
                   </span>
                 )}
                 <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />

@@ -594,7 +594,7 @@ export function LogSaleForm({
                   </span>
                 ) : (
                   <span className="flex items-center gap-2">
-                    <Search className="h-4 w-4 text-muted-foreground" /> Search category, product, or variant…
+                    <Search className="h-4 w-4 text-muted-foreground" /> Search products…
                   </span>
                 )}
                 <ChevronDown className="h-4 w-4 opacity-50 ml-auto" />
