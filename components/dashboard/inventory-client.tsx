@@ -167,13 +167,22 @@ export function InventoryClient({
         {/* Page Header */}
         <div className="flex flex-col gap-4">
           {/* Header Section */}
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-              Inventory Dashboard
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Unified real-time stock view across category, product, and variant levels.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
+                Inventory Dashboard
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Unified real-time stock view across category, product, and variant levels.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button variant="outline" asChild className="rounded-xl h-10 font-semibold shadow-sm">
+                <Link href="/dashboard/inventory/stock-in-record">
+                  Stock-In Record
+                </Link>
+              </Button>
+            </div>
           </div>
 
           {/* Filters and Control Bar (Sticky on Scroll) */}
