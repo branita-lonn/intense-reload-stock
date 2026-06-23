@@ -1,13 +1,22 @@
-// lib/validations/stock-in.ts
-// Zod schemas for the stock-in batch endpoint (Task 6b).
-//
-// Design note on batch bounds:
-//   - quantityAdded capped at 100_000 — a single delivery adding more is almost certainly a data-entry error.
-//   - items array capped at 50 — prevents a malicious or accidental mega-batch.
-//     Larger imports should go through the CSV import flow (Task 6e) which has its own
-//     validation pipeline and explicit per-row error reporting.
-
 import { z } from "zod";
+import { parse, isValid } from "date-fns";
+
+// Validated as a string in dd/mm/yyyy format per the owner's preference,
+// parsed to Date on the server before writing to Prisma.
+const stockInDateSchema = z
+  .string()
+  .regex(/^\d{2}\/\d{2}\/\d{4}$/, {
+    message: "Date must be in DD/MM/YYYY format.",
+  })
+  .refine(
+    (val) => {
+      const parsed = parse(val, "dd/MM/yyyy", new Date());
+      return isValid(parsed);
+    },
+    {
+      message: "Invalid calendar date.",
+    }
+  );
 
 /**
  * Polymorphic parent reference for a stock-bearing Inventory node.
@@ -56,6 +65,7 @@ export const stockInItemSchema = inventoryNodeRefSchema.and(
       .trim()
       .max(255, { message: "Note must be 255 characters or fewer." })
       .optional(),
+    stockInDate: stockInDateSchema.optional().nullable(),
   })
 );
 
@@ -73,3 +83,14 @@ export const stockInBatchSchema = z.object({
 });
 
 export type StockInBatchInput = z.infer<typeof stockInBatchSchema>;
+
+/**
+ * Schema for editing a stock-in date.
+ * Supports bulk editing (up to 50 movements).
+ */
+export const editStockInDateSchema = z.object({
+  stockMovementIds: z.array(z.string().cuid()).min(1).max(50),
+  stockInDate: stockInDateSchema,
+});
+
+export type EditStockInDateInput = z.infer<typeof editStockInDateSchema>;

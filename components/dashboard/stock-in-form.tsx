@@ -8,6 +8,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import {
   Plus,
   Trash2,
@@ -77,6 +78,13 @@ export function StockInForm({
   const [nodeSearch, setNodeSearch] = useState("");
   const [nodePickerOpen, setNodePickerOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [stockInDate, setStockInDate] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  });
 
   // Pre-fill item from search params if present
   useEffect(() => {
@@ -249,6 +257,14 @@ export function StockInForm({
 
     setIsSubmitting(true);
 
+    let formattedDate: string | null = null;
+    if (stockInDate) {
+      const parsedDate = new Date(stockInDate);
+      if (!isNaN(parsedDate.getTime())) {
+        formattedDate = format(parsedDate, "dd/MM/yyyy");
+      }
+    }
+
     const payload = {
       items: batchItems.map((bi) => ({
         branchId,
@@ -257,6 +273,7 @@ export function StockInForm({
         categoryId: bi.row.nodeType === "CATEGORY" ? bi.row.nodeId : undefined,
         productId: bi.row.nodeType === "PRODUCT" ? bi.row.nodeId : undefined,
         productVariantId: bi.row.nodeType === "VARIANT" ? bi.row.nodeId : undefined,
+        stockInDate: formattedDate,
       })),
     };
 
@@ -502,6 +519,24 @@ export function StockInForm({
                       {bi.row.quantity + (typeof bi.quantityAdded === "number" ? bi.quantityAdded : 0)}
                     </div>
                   </div>
+                </div>
+
+                {/* Stock-in date */}
+                <div className="space-y-1.5">
+                  <Label htmlFor={`date-${bi.key}`} className="text-xs font-semibold text-foreground">
+                    Stock-in date
+                  </Label>
+                  <Input
+                    id={`date-${bi.key}`}
+                    type="date"
+                    value={stockInDate}
+                    onChange={(e) => setStockInDate(e.target.value)}
+                    className="rounded-xl h-11 text-sm font-semibold"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    When did this stock physically arrive? Leave blank to use today's date.
+                    {batchItems.length > 1 && " This date applies to all items in this delivery."}
+                  </p>
                 </div>
 
                 {/* Optional note */}

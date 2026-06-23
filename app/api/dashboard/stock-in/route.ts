@@ -7,6 +7,7 @@ import { getInventoryRows } from "@/lib/inventory-queries";
 import { stockInBatchSchema } from "@/lib/validations/stock-in";
 import { handleApiError, ValidationError, NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
+import { parse } from "date-fns";
 
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -33,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
       const updatedRows = [];
 
       for (const item of items) {
-        const { branchId, quantityAdded, note, categoryId, productId, productVariantId } = item;
+        const { branchId, quantityAdded, note, categoryId, productId, productVariantId, stockInDate } = item;
 
         // Build the polymorphic WHERE clause to locate the exact Inventory row.
         const whereClause =
@@ -74,7 +75,13 @@ export async function POST(request: Request): Promise<Response> {
           data: { quantity: quantityAfter },
         });
 
+        // Parse standard date string DD/MM/YYYY into a Date object
+        const parsedStockInDate = stockInDate
+          ? parse(stockInDate, "dd/MM/yyyy", new Date())
+          : null;
+
         // Create an immutable StockMovement audit record.
+        // createdAt is never set here — it is handled exclusively by @default(now()) in the Prisma schema. Do not add it to this create call.
         await tx.stockMovement.create({
           data: {
             branchId,
@@ -87,6 +94,7 @@ export async function POST(request: Request): Promise<Response> {
             quantityDelta: quantityAdded, // always positive for STOCK_IN
             note: note ?? null,
             performedById: session.user.id,
+            stockInDate: parsedStockInDate,
           },
         });
 
