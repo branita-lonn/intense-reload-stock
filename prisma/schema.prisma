@@ -69,6 +69,7 @@ enum UserActivityAction {
   SALE_EDITED
   SETTINGS_UPDATED
   FIRST_RUN_SETUP_COMPLETED
+  STOCK_IN_DATE_EDITED
 }
 
 // Stage 6: Notification types surfaced in the in-app notification bell.
@@ -326,6 +327,11 @@ model StockMovement {
   stockCount       StockCount?       @relation(fields: [stockCountId], references: [id], onDelete: SetNull)
   performedById    String
   performedBy      User              @relation(fields: [performedById], references: [id])
+  // stockInDate: the date the stock physically arrived at the branch,
+  // as recorded by the user. May differ from createdAt (the system date —
+  // when the data was entered into the system). stockInDate is editable;
+  // createdAt is set by the database and never touched by application code.
+  stockInDate      DateTime?
   createdAt        DateTime          @default(now())
 }
 
